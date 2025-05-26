@@ -44,7 +44,7 @@ function Resolve-PathFormulaGraphForJsonArray {
     $sourcesKey = $sourcesKeySignal.GetResult()
 
     # ░▒▓█ GET ROOT ARRAY FROM CONDUCTION SIGNAL RESULT █▓▒░
-    $arraySignal = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.$($sourcePath)" | Select-Object -Last 1
+    $arraySignal = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.@.$($sourcePath)" | Select-Object -Last 1
     $opSignal.MergeSignal(@($arraySignal)) | Out-Null
 
     if ($opSignal.MergeSignalAndVerifyFailure($arraySignal)) {
@@ -63,11 +63,12 @@ function Resolve-PathFormulaGraphForJsonArray {
     $signalMap = @{}
     foreach ($item in $flatArray) {
         $id = $item.Identifier
-        $signalMap[$id] = [Signal]::Start("Node:$id", $opSignal, $null, $item) | Select-Object -Last 1
+        $signalMap[$id] = [Signal]::Start("Node:$id", $opSignal) | Select-Object -Last 1
+        $signalMap[$id].SetJacket($item)
     }
 
     foreach ($signal in $signalMap.Values) {
-        $jacket = $signal.Jacket
+        $jacket = $signal.GetJacket()
         $sources = @()
 
         if ($jacket.ContainsKey($sourcesKey)) {

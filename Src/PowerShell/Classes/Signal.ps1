@@ -46,9 +46,6 @@ class Signal {
 
         if ($null -ne $reversePointer) {
             $opSignal.SetReversePointer($reversePointer) | Out-Null
-            if ($reversePointer -is [Signal]) {
-                $opSignal.MergeSignal(@($reversePointer)) | Out-Null
-            }
         }
 
         return $opSignal

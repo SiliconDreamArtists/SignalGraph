@@ -15,7 +15,7 @@ function Invoke-FormulaGraphCondenser {
     }
 
     $plans = $plansSignal.GetResult()
-    $parentResult = $Signal.GetResult()
+    $parentResult = $Signal.GetJacket()
 
     foreach ($plan in $plans) {
         $planName = $plan.Name
@@ -74,7 +74,7 @@ function Invoke-FormulaGraphCondenser {
             }
         }
         else {
-
+            #AiReFuze
             # The subSignal Jacket Contains the source content, the Jacket's Jacket contains the plan to use and the resul in the $subSignal is the output
             $subSignal = [Signal]::Start("GraphPlan:$planName", $Signal) | Select-Object -Last 1
             $subSignal.SetJacket($Signal.GetJacket()) | Out-Null
