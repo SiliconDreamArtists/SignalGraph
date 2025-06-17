@@ -8,8 +8,8 @@ function Convert-JsonToSignalGraph {
     )
 
     $opSignal = [Signal]::Start("Convert-JsonToSignalGraph", $Signal) | Select-Object -Last 1
-    $signalResult = [Signal]::Start("Result:Root", $opSignal) | Select-Object -Last 1
-    $rootGraphSignal = [Graph]::Start("GSG:Root", $opSignal, $true) | Select-Object -Last 1
+    $signalResult = [Signal]::Start("Root", $opSignal) | Select-Object -Last 1
+    $rootGraphSignal = [Graph]::Start("Root", $opSignal, $true) | Select-Object -Last 1
     $rootGraph = $rootGraphSignal.GetResult()
     $signalResult.SetPointer($rootGraph)
     $opSignal.MergeSignal(@($signalResult, $rootGraphSignal)) | Out-Null
@@ -20,7 +20,7 @@ function Convert-JsonToSignalGraph {
         param (
             [object]$Object,
             [string]$Path,
-            [Graph]$CurrentGraph
+            [Graph]$ParentGraph
         )
 
         if ($null -eq $Object) { return }
@@ -29,9 +29,16 @@ function Convert-JsonToSignalGraph {
             return
         }
 
-        $nodeSignal = [Signal]::Start("Node:$Path", $opSignal) | Select-Object -Last 1
+        $PathParts = $Path -split '\.'
+        $PathPartName = $PathParts[-1]
+
+        $nodeSignal = [Signal]::Start("$PathPartName", $opSignal) | Select-Object -Last 1
         $nodeSignal.SetResult($Object)
-        $CurrentGraph.RegisterSignal($nodeSignal.Name, $nodeSignal) | Out-Null
+        $ParentGraph.RegisterSignal($nodeSignal.Name, $nodeSignal) | Out-Null
+
+        $childGraphSignal = [Graph]::Start("$PathPartName", $nodeSignal, $true) | Select-Object -Last 1
+        $childGraph = $childGraphSignal.GetResult()
+        $nodeSignal.SetPointer($childGraph)
 
         foreach ($property in $Object.PSObject.Properties) {
             $value = $property.Value
@@ -48,23 +55,23 @@ function Convert-JsonToSignalGraph {
 
             if ($isStructuredArray) {
                 $valueArray = @($value)
-                $childGraphSignal = [Graph]::Start("GSG:$Path.$($property.Name)", $opSignal, $true) | Select-Object -Last 1
-                $childGraph = $childGraphSignal.GetResult()
-                $opSignal.MergeSignal($childGraphSignal) | Out-Null
+                $arrayGraphSignal = [Graph]::Start("$Path.$($property.Name)", $opSignal, $true) | Select-Object -Last 1
+                $arrayGraph = $arrayGraphSignal.GetResult()
+                $opSignal.MergeSignal($arrayGraphSignal) | Out-Null
 
-                $graphPointerSignal = [Signal]::Start("Pointer:$Path.$($property.Name)", $opSignal) | Select-Object -Last 1
-                $graphPointerSignal.SetPointer($childGraph)
-                $CurrentGraph.RegisterSignal($graphPointerSignal.Name, $graphPointerSignal) | Out-Null
+                $graphPointerSignal = [Signal]::Start("$Path.$($property.Name)", $opSignal) | Select-Object -Last 1
+                $graphPointerSignal.SetPointer($arrayGraph)
+                $childGraph.RegisterSignal($graphPointerSignal.Name, $graphPointerSignal) | Out-Null
 
                 $i = 0
                 foreach ($item in $valueArray) {
-                    $childSignal = [Signal]::Start("Node:$Path.$($property.Name)[$i]", $opSignal) | Select-Object -Last 1
+                    $childSignal = [Signal]::Start("$Path.$($property.Name)[$i]", $opSignal) | Select-Object -Last 1
                     $childSignal.SetResult($item)
-                    $childGraph.RegisterSignal($childSignal.Name, $childSignal) | Out-Null
+                    $arrayGraph.RegisterSignal($childSignal.Name, $childSignal) | Out-Null
                     $signalMap[$childSignal.Name] = $childSignal
 
                     if ($item -is [System.Collections.IDictionary] -or $item -is [pscustomobject] -or ($item -is [System.Collections.IEnumerable] -and -not ($item -is [string]))) {
-                        Register-RecursiveSignals -Object $item -Path "$Path.$($property.Name)[$i]" -CurrentGraph $childGraph
+                        Register-RecursiveSignals -Object $item -Path "$Path.$($property.Name)[$i]" -ParentGraph $arrayGraph
                     }
                     $i++
                 }
@@ -72,7 +79,7 @@ function Convert-JsonToSignalGraph {
             }
 
             if ($value -is [System.Collections.IDictionary] -or $value -is [pscustomobject]) {
-                Register-RecursiveSignals -Object $value -Path "$Path.$($property.Name)" -CurrentGraph $CurrentGraph
+                Register-RecursiveSignals -Object $value -Path "$Path.$($property.Name)" -ParentGraph $childGraph
             }
         }
     }
@@ -89,10 +96,18 @@ function Convert-JsonToSignalGraph {
         }
     }
 
-    Register-RecursiveSignals -Object $root -Path "Root" -CurrentGraph $rootGraph
+    Register-RecursiveSignals -Object $root -Path "Root" -ParentGraph $rootGraph
     $signalResult.SetResult($root)
-    $opSignal.SetResult($signalResult)
-    Invoke-TraceSignalTree -Signal $signalResult -VisualizeFinal $true
+
+    $rootSignal = Resolve-PathFromDictionary -Dictionary $signalResult -Path "*.#.Root" | Select-Object -Last 1
+
+    if ($opSignal.MergeSignalAndVerifyFailure($rootSignal)) {
+        $opSignal.LogCritical("❌ Failed to resolve root signal.")
+        return $opSignal
+    }
+
+    $opSignal.SetResult($rootSignal.GetResult())
+
     $opSignal.LogInformation("✅ GSG constructed recursively from arbitrary JSON.")
     return $opSignal
 }

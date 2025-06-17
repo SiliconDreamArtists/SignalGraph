@@ -12,3 +12,4 @@
 . "$PSScriptRoot/Utilities/Move-PathInDictionary.ps1"
 . "$PSScriptRoot/Utilities/Invoke-FormulaGraphCondenser.ps1"
 . "$PSScriptRoot/Utilities/Resolve-PathFormulaGraphForJsonArray.ps1"
+. "$PSScriptRoot/Utilities/Parse-FilterSegment.ps1"

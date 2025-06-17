@@ -218,11 +218,10 @@ class Signal {
 
     [void] SetResult([object]$value) {
         $this.SetResult($value, $false)
-            }
+    }
 
     [void] SetResult([object]$value, [bool]$unwrap) {
-        if ($unwrap)
-        {
+        if ($unwrap) {
             while ($value -is [Signal]) {
                 $value = $value.GetResult() | Select-Object -Last 1
             }
@@ -261,10 +260,10 @@ class Signal {
     [Signal] SetReversePointer([object]$value) {
         $opSignal = [Signal]::Start("SetReversePointer:$($this.Name)") | Select-Object -Last 1
 
-#Not done currently, waiting to look for the condition it's required before using it.
-#        while ($value -is [Signal]) {
-#            $value = $value.GetResult()
-#        }
+        #Not done currently, waiting to look for the condition it's required before using it.
+        #        while ($value -is [Signal]) {
+        #            $value = $value.GetResult()
+        #        }
 
         $this.ReversePointer = $value
         $opSignal.LogInformation("🔄 ReversePointer set on signal '$($this.Name)'.")
@@ -342,9 +341,9 @@ class Signal {
             return $opSignal
         }
 
-#        while ($value -is [Signal]) {
-#            $value = $value.GetResult()
-#        }
+        #        while ($value -is [Signal]) {
+        #            $value = $value.GetResult()
+        #        }
 
         $this.Jacket = $value
         $opSignal.LogInformation("🧥 Jacket set on signal '$($this.Name)'.")
