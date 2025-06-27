@@ -22,6 +22,7 @@
 #
 # All memory is recursively encapsulated, sovereign, and lineage-safe.
 
+
 function Resolve-PathFormulaGraphForJsonArray {
     param (
         [Parameter(Mandatory)]
@@ -30,22 +31,19 @@ function Resolve-PathFormulaGraphForJsonArray {
 
     $opSignal = [Signal]::Start("Resolve-PathFormulaGraphForJsonArray", $ConductionSignal) | Select-Object -Last 1
 
-    # ░▒▓█ RESOLVE SOURCE CONFIG PATHS █▓▒░
-    $sourcePathSignal = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.@.Plan.SourceWirePath" | Select-Object -Last 1
-    $sourcesKeySignal = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.@.Plan.SourcesWirePath" | Select-Object -Last 1
-    $opSignal.MergeSignal(@($sourcePathSignal, $sourcesKeySignal)) | Out-Null
-
-    if ($opSignal.MergeSignalAndVerifyFailure(@($sourcePathSignal, $sourcesKeySignal))) {
-        $opSignal.LogCritical("❌ Missing SourceWirePath or SourcesWirePath in Jacket.")
-        return $opSignal
+    $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.%.@.Plan" | Select-Object -Last 1
+    if ($plan.Failure()) {
+        $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.@.Plan" | Select-Object -Last 1
     }
 
-    $sourcePath = $sourcePathSignal.GetResult()
-    $sourcesKey = $sourcesKeySignal.GetResult()
+    $sourcePath = $plan.GetResult().SourceWirePath
+    $sourcesKey = $plan.GetResult().SourcesWirePath
+    $idPath = $plan.GetResult().SourcesIdentifierWirePath
 
-    # ░▒▓█ GET ROOT ARRAY FROM CONDUCTION SIGNAL RESULT █▓▒░
-    $arraySignal = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.@.$($sourcePath)" | Select-Object -Last 1
-    $opSignal.MergeSignal(@($arraySignal)) | Out-Null
+    $arraySignal = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.%.@.$sourcesKey" | Select-Object -Last 1
+    if ($arraySignal.Failure()) {
+        $arraySignal = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.@.$sourcesKey" | Select-Object -Last 1
+    }
 
     if ($opSignal.MergeSignalAndVerifyFailure($arraySignal)) {
         $opSignal.LogCritical("❌ Failed to resolve object array at SourceWirePath '$sourcePath'.")
@@ -53,41 +51,50 @@ function Resolve-PathFormulaGraphForJsonArray {
     }
 
     $flatArray = $arraySignal.GetResult()
+    $graphSignal = [Graph]::Start("Graph:$sourcesKey", $opSignal, $true) | Select-Object -Last 1
+    $graph = $graphSignal.GetResult()
 
-    # ░▒▓█ CREATE GRAPH SIGNAL MESH █▓▒░
-    $graphSignal = [Graph]::Start("GSG:ResolvedGraph", $opSignal, $true) | Select-Object -Last 1
-    $graph = $graphSignal.Pointer
-    $opSignal.MergeSignal($graphSignal) | Out-Null
-
-    # ░▒▓█ BUILD SIGNALS AND REGISTER TO GRAPH █▓▒░
     $signalMap = @{}
     foreach ($item in $flatArray) {
-        $id = $item.Identifier
-        $signalMap[$id] = [Signal]::Start("Node:$id", $opSignal) | Select-Object -Last 1
-        $signalMap[$id].SetJacket($item)
+        $id = $item.Name
+        
+        if ($idPath) {
+             $idSignal = (Resolve-PathFromDictionary -Dictionary $item -Path $idPath) | Select-Object -Last 1
+            if ($idSignal.Failure()) {
+                $opSignal.LogCritical("❌ Failed to resolve identifier path '$idPath' for item: $($item.Name)")
+                return $opSignal
+            }
+
+            $id = $idSignal.GetResult()
+        }
+
+$itemSignal = [Signal]::Start("Node:$($id):Jacket", $item)
+$itemSignal.SetResult($item)
+
+        $nodeSignal = [Signal]::Start("Node:$id", $item) | Select-Object -Last 1
+        $nodeSignal.SetJacket($itemSignal)
+        $signalMap[$id] = $nodeSignal
+        $graph.RegisterSignal($id, $nodeSignal)
     }
 
-    foreach ($signal in $signalMap.Values) {
-        $jacket = $signal.GetJacket()
-        $sources = @()
+    if ($sourcesKey) {
+        foreach ($node in $signalMap.Values) {
+            $jacket = $node.GetJacket()
+            $sourceIds = (Resolve-PathFromDictionary -Dictionary $jacket -Path $sourcesKey | Select-Object -Last 1).GetResult()
 
-        if ($jacket.ContainsKey($sourcesKey)) {
-            foreach ($srcId in $jacket[$sourcesKey]) {
+            $linked = @()
+            foreach ($srcId in $sourceIds) {
                 if ($signalMap.ContainsKey($srcId)) {
-                    $sources += $signalMap[$srcId]
-                } else {
-                    $opSignal.LogWarning("⚠️ Source ID '$srcId' not found in signal map.")
+                    $linked += $signalMap[$srcId]
                 }
             }
-        }
 
-        if ($sources.Count -eq 1) {
-            $signal.SetPointer($sources[0])
-        } elseif ($sources.Count -gt 1) {
-            $signal.SetPointer($sources)
+            if ($linked.Count -eq 1) {
+                $node.SetPointer($linked[0])
+            } elseif ($linked.Count -gt 1) {
+                $node.SetPointer($linked)
+            }
         }
-
-        $graph.RegisterSignal($signal.Name, $signal) | Out-Null
     }
 
     $graph.Finalize()
