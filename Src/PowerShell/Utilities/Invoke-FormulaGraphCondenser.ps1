@@ -25,74 +25,91 @@ function Invoke-FormulaGraphCondenser {
         param (
             [Signal]$Signal,
             [object]$Plan,
-            [object]$Item
+            [object]$Item,
+            [object]$ParentPlan = $null
         )
 
-        if ($executedPlans.ContainsKey($Plan.Name)) {
-            return
-        }
+        $planSignal = [Signal]::Start("GraphPlan:$($Plan.Name)", $Signal) | Select-Object -Last 1
 
+        if ($executedPlans.ContainsKey($Plan.Name)) {
+            return $planSignal
+        }
         $executedPlans[$Plan.Name] = $true
-        $planName = $Plan.Name
 
         if ($Plan.ForEachIn) {
             $arraySignal = Resolve-PathFromDictionary -Dictionary $Item -Path "%.%.@.$($Plan.ForEachIn)" | Select-Object -Last 1
-            if ($opSignal.MergeSignalAndVerifyFailure($arraySignal)) {
-                $opSignal.LogWarning("⚠️ Could not resolve array path for ForEachIn: $($Plan.ForEachIn)")
-                return
+            if ($arraySignal.Failure()) {
+                $arraySignal = Resolve-PathFromDictionary -Dictionary $Item -Path "%.@.$($Plan.ForEachIn)" | Select-Object -Last 1
+            }
+
+            if ($planSignal.MergeSignalAndVerifyFailure($arraySignal)) {
+                $planSignal.LogWarning("⚠️ Could not resolve array path for ForEachIn: $($Plan.ForEachIn)")
+                return $planSignal
             }
 
             foreach ($subItem in $arraySignal.GetResult()) {
-                $injectionContext = Resolve-GraphPlanInjectionContext -Plan $Plan -AllPlans $plans -Signal $Signal -ParentItem $Item -Dynamic $subItem | Select-Object -Last 1
-                if ($opSignal.MergeSignalAndVerifyFailure($injectionContext)) {
-                    $opSignal.LogWarning("⚠️ Could not resolve injection context for item in $($Plan.Name)")
+                $injectionContextSignal = Resolve-GraphPlanInjectionContext -ParentPlan $ParentPlan -Plan $Plan -AllPlans $plans -Signal $Signal -ParentItem $Item -Dynamic $subItem | Select-Object -Last 1
+                if ($planSignal.MergeSignalAndVerifyFailure($injectionContextSignal)) {
+                    $planSignal.LogWarning("⚠️ Could not resolve injection context for item in $($Plan.Name)")
                     continue
                 }
 
-                $subItemSignal = [Signal]::Start("Item:$($subItem.Name):Jacket", $Item) | Select-Object -Last 1
+                $subItemSignal = [Signal]::Start("Item:$($subItem.Name):Wrapper", $Item) | Select-Object -Last 1
                 $subItemSignal.SetResult($subItem) | Out-Null
 
                 $graphPlanResult = Invoke-GraphPlanOnItem -ParentSignal $Signal -Plan $Plan -Item $subItemSignal -PlanName $Plan.Name -PlanWirePathPrefix "%.@" | Select-Object -Last 1
-                if ($opSignal.MergeSignalAndVerifyFailure($graphPlanResult)) {
-                    $opSignal.LogWarning("⚠️ Graph plan failed for item in $($Plan.Name)")
+                if ($planSignal.MergeSignalAndVerifyFailure($graphPlanResult)) {
+                    $planSignal.LogWarning("⚠️ Graph plan failed for item in $($Plan.Name)")
                     continue
                 }
 
                 $wrappedSignal = $graphPlanResult.GetResult()
-
+                $injectionContext = $injectionContextSignal.GetResult()
                 if ($injectionContext.FullTargetPath) {
-                    $injectSignal = Add-PathToDictionary -Dictionary $Signal -Path $injectionContext.FullTargetPath -Value $wrappedSignal | Select-Object -Last 1
-                    if ($opSignal.MergeSignalAndVerifyFailure($injectSignal)) {
-                        $opSignal.LogWarning("⚠️ Failed to inject graph result for plan: $($Plan.Name)")
+                    $injectSignal = Add-PathToDictionary -Dictionary $Item -Path $injectionContext.FullTargetPath -Value $wrappedSignal | Select-Object -Last 1
+                    if ($planSignal.MergeSignalAndVerifyFailure($injectSignal)) {
+                        $planSignal.LogWarning("⚠️ Failed to inject graph result for plan: $($Plan.Name)")
                         continue
                     }
-                    $opSignal.LogInformation("📍 Injected graph into '$($injectionContext.FullTargetPath)'")
+                    $planSignal.LogInformation("📍 Injected graph into '$($injectionContext.FullTargetPath)'")
                 }
 
+                $subItemJacketSignal = [Signal]::Start("Item:$($subItem.Name):Jacket", $Item) | Select-Object -Last 1
+                $subItemJacketSignal.SetJacket($subItemSignal) | Out-Null
+
                 foreach ($dependent in $plans | Where-Object { $_.DependsOn -eq $Plan.Name }) {
-                    Invoke-PlanAndDependents -Signal $Signal -Plan $dependent -Item $subItem
+                    $dependentResult = Invoke-PlanAndDependents -Signal $Signal -Plan $dependent -Item $subItemJacketSignal -ParentPlan $Plan | Select-Object -Last 1
+                    if ($planSignal.MergeSignalAndVerifyFailure($dependentResult)) {
+                        $planSignal.LogWarning("⚠️ Dependent '$($dependent.Name)' failed for item in $($Plan.Name)")
+                        continue
+                    }
                 }
             }
         }
         else {
-            $wrappedSignal = Invoke-GraphPlanOnItem -ParentSignal $Signal -Plan $Plan -Item $Item -PlanName $planName | Select-Object -Last 1
-            if (-not $wrappedSignal) { return }
+            $wrappedSignal = Invoke-GraphPlanOnItem -ParentSignal $Signal -Plan $Plan -Item $Item -PlanName $Plan.Name | Select-Object -Last 1
+            if (-not $wrappedSignal) { return $planSignal }
 
             foreach ($dependent in $plans | Where-Object { $_.DependsOn -eq $Plan.Name }) {
-                Invoke-PlanAndDependents -Signal $Signal -Plan $dependent -Item $Item
+                Invoke-PlanAndDependents -Signal $Signal -Plan $dependent -Item $Item -ParentPlan $Plan | Out-Null
             }
 
-            $opSignal.SetResult($wrappedSignal.GetPointer())
+            $planSignal.SetResult($wrappedSignal.GetPointer())
         }
+
+        return $planSignal
     }
 
     $rootItem = $Signal.GetJacket()
     foreach ($plan in $plans) {
         if (-not $plan.DependsOn) {
-            Invoke-PlanAndDependents -Signal $Signal -Plan $plan -Item $rootItem
+            Invoke-PlanAndDependents -Signal $Signal -Plan $plan -Item $rootItem -ParentPlan $null | Out-Null
         }
     }
 
+    $finalGraph = Resolve-PathFromDictionary -Dictionary $Signal -Path "%" | Select-Object -Last 1
+
+    $opSignal.SetResult($finalGraph.GetResult())
     $opSignal.LogInformation("✅ Completed all declared GraphPlans.")
     return $opSignal
 }

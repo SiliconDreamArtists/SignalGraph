@@ -1,6 +1,7 @@
 function Resolve-GraphPlanInjectionContext {
     [CmdletBinding()]
     param (
+        [object]$ParentPlan,
         [Parameter(Mandatory)] [object]$Plan,
         [Parameter(Mandatory)] [object[]]$AllPlans,
         [Parameter(Mandatory)] [Signal]$Signal,
@@ -28,7 +29,7 @@ function Resolve-GraphPlanInjectionContext {
             $context.SourceItem = $sourceSig.GetResult()
         }
 
-        # ░▒▓█ Resolve dynamic target path or key-matched signal █▓▒░
+        # ░▒▓█ Resolve target using identifier and ParentPlan for composed path █▓▒░
         if ($Plan.TargetWirePath -and $Plan.TargetIdentifierWirePath) {
             $idSig = Resolve-PathFromDictionary -Dictionary $Dynamic -Path $Plan.TargetIdentifierWirePath | Select-Object -Last 1
             if ($opSignal.MergeSignalAndVerifyFailure($idSig)) {
@@ -37,17 +38,41 @@ function Resolve-GraphPlanInjectionContext {
             }
 
             $lookupKey = $idSig.GetResult()
-            $targetSig = Resolve-PathFromDictionary -Dictionary $ParentItem -Path "*.#.Agents.*.#.$lookupKey" | Select-Object -Last 1
+
+            # Build composed path if ParentPlan exists
+            $parentPath = $null            
+            if ($null -ne $ParentPlan)
+            {
+                $parentPath = $ParentPlan.TargetWirePath
+            }
+
+            $basePath = if ($parentPath) {
+                "$parentPath.*.#.$lookupKey"
+            } else {
+                "*.#.$lookupKey"
+            }
+
+            $targetSig = Resolve-PathFromDictionary -Dictionary $ParentItem -Path "$basePath" | Select-Object -Last 1
+            if ($targetSig.Failure()) {
+                $targetSig = Resolve-PathFromDictionary -Dictionary $ParentItem -Path "%.$basePath" | Select-Object -Last 1
+            }
+            
             if ($opSignal.MergeSignalAndVerifyFailure($targetSig)) {
-                $opSignal.LogWarning("⚠️ Failed to resolve target using key: $lookupKey")
+                $opSignal.LogWarning("⚠️ Failed to resolve target signal at path: $basePath")
                 return $opSignal
             }
 
-            $context.FullTargetPath = "*.#.$lookupKey"
+            # Compose final target path for injecting child graph
+            $finalPath = if ($Plan.TargetWirePath) {
+                "$basePath.$($Plan.TargetWirePath)"
+            } else {
+                $basePath
+            }
+
             $context.TargetSignal   = $targetSig
+            $context.FullTargetPath = $finalPath
         }
 
-        # Return signal result with context dictionary as payload
         $opSignal.SetResult($context)
         $opSignal.LogInformation("✅ Injection context resolved for plan: $($Plan.Name)")
         return $opSignal
