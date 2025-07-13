@@ -37,7 +37,7 @@ Canonical write function for all state mutation.
 
 ## 🧪 Specialized Resolver
 
-### 6. `Resolve-PathFormulaGraphForJsonArray.ps1`
+### 6. `Resolve-PathGraphForJsonArray.ps1`
 Orchestrates formula-based array graph construction.
 - Parses `WirePath` mappings
 - Invokes recursive resolve logic for complex Condenser operations

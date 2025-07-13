@@ -1,12 +1,12 @@
 # =============================================================================
-# 🔁 Resolve-PathFormulaGraphForJsonArray (Declarative Signal Graph Builder)
+# 🔁 Resolve-PathGraphForJsonArray (Declarative Signal Graph Builder)
 #  License: MIT License • Copyright (c) 2025 Silicon Dream Artists / BDDB
 #  Authors: Shadow PhanTom ☠️🧁👾️/🤖 • Neural Alchemist ⚗️☣️🐲 • Last Generated: 05/20/2025
 # =============================================================================
 # This function generates a sovereign Signal graph from a JSON array, using
 # declarative wire path references embedded in a scoped Signal Jacket.
 #
-# It is designed to be called within a FormulaGraphCondenser flow, where each
+# It is designed to be called within a GraphCondenser flow, where each
 # plan signal contains:
 #   - A SourceWirePath: path to the array of objects to convert to signals
 #   - A SourcesWirePath: key or path in each item that declares its linked nodes
@@ -23,13 +23,13 @@
 # All memory is recursively encapsulated, sovereign, and lineage-safe.
 
 
-function Resolve-PathFormulaGraphForJsonArray {
+function Resolve-PathGraphForJsonArray {
     param (
         [Parameter(Mandatory)]
         [Signal]$ConductionSignal
     )
 
-    $opSignal = [Signal]::Start("Resolve-PathFormulaGraphForJsonArray", $ConductionSignal) | Select-Object -Last 1
+    $opSignal = [Signal]::Start("Resolve-PathGraphForJsonArray", $ConductionSignal) | Select-Object -Last 1
 
     $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.%.@.Plan" | Select-Object -Last 1
     if ($plan.Failure()) {

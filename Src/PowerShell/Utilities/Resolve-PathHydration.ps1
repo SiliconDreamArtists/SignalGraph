@@ -45,4 +45,4 @@ function Resolve-PathHydration {
 }
 
 
-Resolve-PathHydration -CompactPath "Adapters.MappedCondenser.FormulaGraphCondenser"
+Resolve-PathHydration -CompactPath "Adapters.MappedCondenser.GraphCondenser"
