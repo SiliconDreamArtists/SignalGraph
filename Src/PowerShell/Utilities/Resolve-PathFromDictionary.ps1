@@ -52,7 +52,8 @@ function Resolve-PathFromDictionary {
                         $opSignal.LogVerbose("🔗 Dereferenced *Pointer")
                         $processed = $true
                         continue
-                    } else {
+                    }
+                    else {
                         $opSignal.LogWarning("❌ Expected Signal for *Pointer, got $($current.GetType().Name)")
                     }
                 }
@@ -62,13 +63,14 @@ function Resolve-PathFromDictionary {
                         $opSignal.LogVerbose("🎯 Dereferenced @Result")
                         $processed = $true
                         continue
-                    } else {
+                    }
+                    else {
                         $opSignal.LogWarning("❌ Expected Signal for @Result, got $($current.GetType().Name)")
                     }
                 }
                 "Signal" {
                     # This segment is structural, let it use the below logic to determine how to return the Signal
-                        #$processed = $true
+                    #$processed = $true
                     continue
                 }
                 "Jacket" {
@@ -77,7 +79,8 @@ function Resolve-PathFromDictionary {
                         $opSignal.LogVerbose("🧥 Accessed %Jacket")
                         $processed = $true
                         continue
-                    } else {
+                    }
+                    else {
                         $opSignal.LogWarning("❌ Expected Signal for %Jacket, got $($current.GetType().Name)")
                     }
                 }
@@ -87,7 +90,8 @@ function Resolve-PathFromDictionary {
                         $opSignal.LogVerbose("🧩 Accessed #Grid")
                         $processed = $true
                         continue
-                    } else {
+                    }
+                    else {
                         $opSignal.LogWarning("❌ Expected Graph for #Grid, got $($current.GetType().Name)")
                     }
                 }
@@ -104,9 +108,11 @@ function Resolve-PathFromDictionary {
                 $array = $null
                 if ($current -is [System.Collections.IDictionary] -and $current.ContainsKey($arrayKey)) {
                     $array = $current[$arrayKey]
-                } elseif ($current -is [pscustomobject] -and $current.PSObject.Properties.Name -contains $arrayKey) {
+                }
+                elseif ($current -is [pscustomobject] -and $current.PSObject.Properties.Name -contains $arrayKey) {
                     $array = $current.$arrayKey
-                } else {
+                }
+                else {
                     $opSignal.LogCritical("❌ Array key '$arrayKey' not found.")
                     return $opSignal
                 }
@@ -130,16 +136,37 @@ function Resolve-PathFromDictionary {
             }
             elseif ($current -is [System.Collections.IEnumerable] -and -not ($current -is [string])) {
                 $found = $null
-                foreach ($item in $current) {
-                    if (($item -is [pscustomobject] -or $item -is [hashtable]) -and ($item.Name -eq $key)) {
-                        $found = $item
-                        break
+
+                if ($key -is [int] -or ($key -as [int] -ne $null)) {
+                    $index = [int]$key
+                    $list = @($current)  # Ensure it's indexable
+
+                    if ($index -ge 0 -and $index -lt $list.Count) {
+                        $current = $list[$index]
+                    }
+                    else {
+                        $opSignal.LogCritical("❌ Index '$index' out of bounds (0..$($list.Count - 1)).")
+                        return $opSignal
                     }
                 }
-                if ($found) { $current = $found }
                 else {
-                    $opSignal.LogCritical("❌ Could not find item by name '$key' in collection.")
-                    return $opSignal
+                    foreach ($item in $current) {
+                        if (($item -is [pscustomobject] -or $item -is [hashtable]) -and ($item.Name -eq $key)) {
+                            $found = $item
+                            break
+                        }
+                        elseif (($item -is [signal]) -and ($item.Name -eq $key)) {
+                            $found = $item
+                            break
+                        }
+                    }
+                    if ($found) {
+                        $current = $found
+                    }
+                    else {
+                        $opSignal.LogCritical("❌ Could not find item by name '$key' in collection.")
+                        return $opSignal
+                    }
                 }
             }
             elseif ($current.GetType().IsClass -and $current.GetType().Namespace -ne "System") {
@@ -158,7 +185,8 @@ function Resolve-PathFromDictionary {
 
         $opSignal.SetResult($current)
         $opSignal.LogInformation("✅ Successfully resolved path '$Path'")
-    } catch {
+    }
+    catch {
         $opSignal.LogCritical("🔥 Exception during path resolution: $_")
     }
 

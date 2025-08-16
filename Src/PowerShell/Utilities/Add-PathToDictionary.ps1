@@ -17,11 +17,24 @@ function Add-PathToDictionary {
     }
 
     function Expand-Symbols {
-        param ([string[]]$segments)
-        return $segments | ForEach-Object {
-            if ($symbolMap.ContainsKey($_)) { $symbolMap[$_] } else { $_ }
-        }
+    param ([Parameter(Mandatory)][string[]]$segments)
+
+    if ($segments -isnot [System.Array]) {
+        $segments = @($segments)
     }
+
+    return $segments | ForEach-Object {
+        if ($symbolMap.ContainsKey($_)) { $symbolMap[$_] } else { $_ }
+    }
+}
+
+function Expand-SymbolsF {
+    param ([Parameter(Mandatory)][string[]]$segments)
+
+    return @($segments) | ForEach-Object {
+        if ($symbolMap.ContainsKey($_)) { $symbolMap[$_] } else { $_ }
+    }
+}
 
     function Update-ContextFromSegment {
         param (
@@ -50,6 +63,7 @@ function Add-PathToDictionary {
         }
 
         $current = $Dictionary
+        $segments = @($segments) 
 
         for ($i = 0; $i -lt $segments.Count; $i++) {
             $key = $segments[$i]
@@ -98,10 +112,18 @@ function Add-PathToDictionary {
                 }
                 "Result" {
                     if ($current -is [Signal]) {
-                        if (-not $current.HasResult()) {
-                            $current.SetResult(@{})
+                        if ($isFinal)
+                        {
+                            $current.SetResult($Value)
+                            $opSignal.LogInformation("📥 Wrote '$key' → $($Value.GetType().Name)")
                         }
-                        $current = $current.GetResult()
+                        else {
+                            if (-not $current.HasResult()) {
+                                $current.SetResult(@{})
+                            }
+                            $current = $current.GetResult()
+                        }
+
                         $processed = $true
                         continue
                     }
@@ -179,6 +201,9 @@ function Add-PathToDictionary {
                 elseif ($current -is [System.Collections.IDictionary]) {
                     $current[$key] = $Value
                 }
+                elseif ($current -is [System.Object[]]) {
+                    $current[$key] = $Value
+                }
                 elseif ($current -is [PSCustomObject] -or $current -is [System.Management.Automation.PSObject]) {
                     if (-not $current.PSObject.Properties[$key]) {
                         Add-Member -InputObject $current -MemberType NoteProperty -Name $key -Value $Value
@@ -194,6 +219,9 @@ function Add-PathToDictionary {
                         return $opSignal
                     }
                     $prop.SetValue($current, $Value)
+                }
+                elseif ($current -is [System.Object[]]) {
+                    $current[$key] = $Value
                 }
                 else {
                     $opSignal.LogCritical("❌ Unsupported type at final write: $($current.GetType().FullName)")
@@ -268,4 +296,6 @@ function Add-PathToDictionary {
         $opSignal.LogCritical("❌ Exception during Add-PathToDictionary: $_")
         return $opSignal
     }
+
+    return $opSignal
 }

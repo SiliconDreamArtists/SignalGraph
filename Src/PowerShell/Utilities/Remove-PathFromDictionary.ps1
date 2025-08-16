@@ -23,7 +23,8 @@ function Remove-PathFromDictionary {
     }
 
     if ($segments.Count -lt 1) {
-        return $opSignal.LogCritical("❌ Path must contain at least one segment.")
+        $opSignal.LogCritical("❌ Path must contain at least one segment.")
+        return $opSignal
     }
 
     $targetKey  = $segments[-1]
@@ -32,7 +33,8 @@ function Remove-PathFromDictionary {
     # ░▒▓█ RESOLVE PARENT OBJECT █▓▒░
     $parentSignal = Resolve-PathFromDictionary -Dictionary $Dictionary -Path $parentPath | Select-Object -Last 1
     if ($opSignal.MergeSignalAndVerifyFailure($parentSignal)) {
-        return $opSignal.LogCritical("❌ Failed to resolve parent at '$parentPath'")
+        $opSignal.LogCritical("❌ Failed to resolve parent at '$parentPath'")
+        return $opSignal
     }
 
     $parent = $parentSignal.GetResult()
@@ -65,7 +67,8 @@ function Remove-PathFromDictionary {
             }
         }
         default {
-            return $opSignal.LogCritical("❌ Unsupported parent type at '$targetKey': $($parent.GetType().FullName)")
+            $opSignal.LogCritical("❌ Unsupported parent type at '$targetKey': $($parent.GetType().FullName)")
+            return $opSignal
         }
     }
 

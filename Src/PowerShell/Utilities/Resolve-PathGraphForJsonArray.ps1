@@ -37,30 +37,52 @@ function Resolve-PathGraphForJsonArray {
     }
 
     $sourcePath = $plan.GetResult().SourceWirePath
+    # Pull plan fields
     $sourcesKey = $plan.GetResult().SourcesWirePath
     $idPath = $plan.GetResult().SourcesIdentifierWirePath
 
-    $arraySignal = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.%.@.$sourcesKey" | Select-Object -Last 1
-    if ($arraySignal.Failure()) {
-        $arraySignal = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.@.$sourcesKey" | Select-Object -Last 1
-    }
+    # Normalize template (default to '{0}')
+    $template = $plan.GetResult().SourcesWirePathTemplate
+    $template = if ([string]::IsNullOrWhiteSpace($template)) { '{0}' } else { $template }
+    $isDefault = ($template -eq '{0}')
 
-    if ($opSignal.MergeSignalAndVerifyFailure($arraySignal)) {
-        $opSignal.LogCritical("❌ Failed to resolve object array at SourceWirePath '$sourcePath'.")
+    # Enforce token
+    if ($template -notmatch '\{0\}') {
+        $opSignal.LogCritical("❌ SourcesWirePathTemplate must contain '{0}'. Template: '$template'")
         return $opSignal
     }
 
+    # Build path from template
+    $path = [string]::Format($template, $sourcesKey)
+
+    # Resolve the array at the computed path
+    $arraySignal = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path $path | Select-Object -Last 1
+    if ($opSignal.MergeSignalAndVerifyFailure(@($arraySignal))) {
+        $opSignal.LogCritical("❌ Failed to resolve object array via SourcesWirePathTemplate. For SourcesWirePath='$sourcesKey' → '$path'")
+        return $opSignal
+    }
+
+    # Log with tidy messaging when default template is used
+    if ($isDefault) {
+        $opSignal.LogInformation("✅ Sources resolved: '$path'")
+    }
+    else {
+        $opSignal.LogInformation("✅ Sources resolved: '$path' (template: '$template')")
+    }
+
     $flatArray = $arraySignal.GetResult()
+
+    # Build a graph and map items by identifier
     $graphSignal = [Graph]::Start("Graph:$sourcesKey", $opSignal, $true) | Select-Object -Last 1
     $graph = $graphSignal.GetResult()
 
     $signalMap = @{}
     foreach ($item in $flatArray) {
         $id = $item.Name
-        
+
         if ($idPath) {
-             $idSignal = (Resolve-PathFromDictionary -Dictionary $item -Path $idPath) | Select-Object -Last 1
-            if ($idSignal.Failure()) {
+            $idSignal = Resolve-PathFromDictionary -Dictionary $item -Path $idPath | Select-Object -Last 1
+            if ($opSignal.MergeSignalAndVerifyFailure(@($idSignal))) {
                 $opSignal.LogCritical("❌ Failed to resolve identifier path '$idPath' for item: $($item.Name)")
                 return $opSignal
             }
@@ -68,20 +90,29 @@ function Resolve-PathGraphForJsonArray {
             $id = $idSignal.GetResult()
         }
 
-$itemSignal = [Signal]::Start("Node:$($id):Jacket", $item)
-$itemSignal.SetResult($item)
+        $jacketSig = [Signal]::Start("Node:$($id):Jacket", $item)
+        $jacketSig.SetResult($item)
 
         $nodeSignal = [Signal]::Start("Node:$id", $item) | Select-Object -Last 1
-        $nodeSignal.SetJacket($itemSignal)
+        $nodeSignal.SetJacket($jacketSig)
+
         $signalMap[$id] = $nodeSignal
-        $graph.RegisterSignal($id, $nodeSignal)
+        $graph.RegisterSignal($id, $nodeSignal) | Out-Null
     }
 
+    # Link nodes using the same sources key path on each jacket
+    # Turned off because sourcesKey doesn't find anything in jacket that matches the sources
     if ($sourcesKey) {
         foreach ($node in $signalMap.Values) {
             $jacket = $node.GetJacket()
-            $sourceIds = (Resolve-PathFromDictionary -Dictionary $jacket -Path $sourcesKey | Select-Object -Last 1).GetResult()
+            $sourceSignal = Resolve-PathFromDictionary -Dictionary $jacket -Path $sourcesKey | Select-Object -Last 1
+            <#
+            if ($opSignal.MergeSignalAndVerifyFailure(@($sourceSignal))) {
+                return $opSignal.LogCritical("❌ Could not resolve sources from key: $sourcesKey")
+            }
 
+            $sourceIds = $sourceSignal.GetResult()
+\
             $linked = @()
             foreach ($srcId in $sourceIds) {
                 if ($signalMap.ContainsKey($srcId)) {
@@ -89,11 +120,9 @@ $itemSignal.SetResult($item)
                 }
             }
 
-            if ($linked.Count -eq 1) {
-                $node.SetPointer($linked[0])
-            } elseif ($linked.Count -gt 1) {
-                $node.SetPointer($linked)
-            }
+            if ($linked.Count -eq 1) { $node.SetPointer($linked[0]) }
+            elseif ($linked.Count -gt 1) { $node.SetPointer($linked) }
+            #>
         }
     }
 

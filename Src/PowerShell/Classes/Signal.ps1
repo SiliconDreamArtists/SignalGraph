@@ -51,15 +51,15 @@ class Signal {
         return $opSignal
     }
 
-    [SignalEntry] LogMessage([string]$level, [string]$message) {
+    [Signal] LogMessage([string]$level, [string]$message) {
         return $this.LogMessage($level, $message, "Unspecified", $null)
     }
 
-    [SignalEntry] LogMessage([string]$level, [string]$message, [Exception]$exception = $null) {
+    [Signal] LogMessage([string]$level, [string]$message, [Exception]$exception = $null) {
         return $this.LogMessage($level, $message, "Unspecified", $exception)
     }
 
-    [SignalEntry] LogMessage([string]$level, [string]$message, [string]$nature = "Unspecified", [Exception]$exception = $null) {
+    [Signal] LogMessage([string]$level, [string]$message, [string]$nature = "Unspecified", [Exception]$exception = $null) {
         $exceptionMessage = if ($exception) { $exception.Message } else { $null }
         $entry = [SignalEntry]::new($this, $level, $message, $nature, $exceptionMessage)
         $this.Entries.Add($entry)
@@ -72,38 +72,38 @@ class Signal {
             catch {}
         }
 
-        return $entry
+        return $this
     }
 
-    [SignalEntry] LogVerbose([string]$message) {
+    [Signal] LogVerbose([string]$message) {
         return $this.LogMessage("Verbose", $message)
     }
 
-    [SignalEntry] LogInformation([string]$message) {
+    [Signal] LogInformation([string]$message) {
         return $this.LogMessage("Information", $message)
     }
 
-    [SignalEntry] LogDiagram([string]$message) {
+    [Signal] LogDiagram([string]$message) {
         return $this.LogMessage("Diagram", $message)
     }
 
-    [SignalEntry] LogWarning([string]$message) {
+    [Signal] LogWarning([string]$message) {
         return $this.LogMessage("Warning", $message)
     }
 
-    [SignalEntry] LogRetry([string]$message) {
+    [Signal] LogRetry([string]$message) {
         return $this.LogMessage("Retry", $message)
     }
 
-    [SignalEntry] LogCritical([string]$message) {
+    [Signal] LogCritical([string]$message) {
         return $this.LogMessage("Critical", $message)
     }
 
-    [SignalEntry] LogRecovery([string]$message) {
+    [Signal] LogRecovery([string]$message) {
         return $this.LogMessage("Recovery", $message)
     }
 
-    [SignalEntry] LogMute([string]$message) {
+    [Signal] LogMute([string]$message) {
         return $this.LogMessage("Mute", $message)
     }
 
