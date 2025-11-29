@@ -59,11 +59,12 @@ class Signal {
         return $this.LogMessage($level, $message, "Unspecified", $exception)
     }
 
-    [Signal] LogMessage([string]$level, [string]$message, [string]$nature = "Unspecified", [Exception]$exception = $null) {
+    [Signal] LogMessage([string]$_level, [string]$message, [string]$nature = "Unspecified", [Exception]$exception = $null) {
         $exceptionMessage = if ($exception) { $exception.Message } else { $null }
-        $entry = [SignalEntry]::new($this, $level, $message, $nature, $exceptionMessage)
+
+        $entry = [SignalEntry]::new($this, $_level, $message, $nature, $exceptionMessage)
         $this.Entries.Add($entry)
-        $this.UpdateLevel($level)
+        $this.UpdateLevel($_level)
 
         if ($Global:SignalLogger -ne $null) {
             try {
@@ -71,6 +72,11 @@ class Signal {
             }
             catch {}
         }
+
+        if ($_level -eq "Critical") {
+            $_level = "Critical"
+        }
+
 
         return $this
     }
@@ -82,7 +88,6 @@ class Signal {
     [Signal] LogInformation([string]$message) {
         return $this.LogMessage("Information", $message)
     }
-
     [Signal] LogDiagram([string]$message) {
         return $this.LogMessage("Diagram", $message)
     }
@@ -236,7 +241,7 @@ class Signal {
             return $this.Result
         }
         else {
-            $this.LogCritical("❌ Attempted to retrieve result but no result is present in signal.")
+             $this.LogCritical("❌ Attempted to retrieve result but no result is present in signal.")
             return $null
         }
     }
@@ -350,6 +355,10 @@ class Signal {
         $opSignal.SetResult($this)
 
         return $opSignal
+    }
+        
+    [bool] HasJacket() {
+        return $null -ne $this.Jacket
     }
 
     [object] GetJacket() {

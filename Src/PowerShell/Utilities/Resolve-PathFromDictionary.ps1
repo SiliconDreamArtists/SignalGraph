@@ -8,7 +8,8 @@
 function Resolve-PathFromDictionary {
     param (
         [Parameter(Mandatory)] $Dictionary,
-        [Parameter(Mandatory)] [string]$Path
+        [Parameter(Mandatory)] [string]$Path,
+        [string]$FailureLogLevel = "Critical"
     )
 
     $opSignal = [Signal]::Start("Resolve-PathFromDictionary", $Dictionary) | Select-Object -Last 1
@@ -39,7 +40,7 @@ function Resolve-PathFromDictionary {
 
         foreach ($segment in $segments) {
             if ($null -eq $current) {
-                $opSignal.LogCritical("❌ Null encountered while traversing '$segment'")
+                $opSignal.LogMessage($FailureLogLevel, "❌ Null encountered while traversing '$segment'")
                 return $opSignal    
             }
 
@@ -101,7 +102,7 @@ function Resolve-PathFromDictionary {
                 continue
             }
 
-            $parsed = Parse-FilterSegment $segment
+            $parsed = Invoke-ParseFilterSegment $segment
 
             if ($parsed.IsFilter) {
                 $arrayKey = $parsed.ArrayKey
@@ -145,7 +146,7 @@ function Resolve-PathFromDictionary {
                         $current = $list[$index]
                     }
                     else {
-                        $opSignal.LogCritical("❌ Index '$index' out of bounds (0..$($list.Count - 1)).")
+                        $opSignal.LogMessage($FailureLogLevel, "❌ Index '$index' out of bounds (0..$($list.Count - 1)).")
                         return $opSignal
                     }
                 }
@@ -164,7 +165,7 @@ function Resolve-PathFromDictionary {
                         $current = $found
                     }
                     else {
-                        $opSignal.LogCritical("❌ Could not find item by name '$key' in collection.")
+                        $opSignal.LogMessage($FailureLogLevel, "❌ Could not find item by name '$key' in collection.")
                         return $opSignal
                     }
                 }
@@ -172,13 +173,13 @@ function Resolve-PathFromDictionary {
             elseif ($current.GetType().IsClass -and $current.GetType().Namespace -ne "System") {
                 $prop = $current.GetType().GetProperty($key)
                 if ($null -eq $prop) {
-                    $opSignal.LogCritical("❌ Property '$key' not found on '$($current.GetType().Name)'")
+                    $opSignal.LogMessage($FailureLogLevel, "❌ Property '$key' not found on '$($current.GetType().Name)'")
                     return $opSignal
                 }
                 $current = $prop.GetValue($current)
             }
             else {
-                $opSignal.LogCritical("❌ Unsupported traversal type: $($current.GetType().FullName)")
+                $opSignal.LogMessage($FailureLogLevel, "❌ Unsupported traversal type: $($current.GetType().FullName)")
                 return $opSignal
             }
         }

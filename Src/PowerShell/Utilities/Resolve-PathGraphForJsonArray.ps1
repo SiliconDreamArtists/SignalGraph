@@ -31,12 +31,15 @@ function Resolve-PathGraphForJsonArray {
 
     $opSignal = [Signal]::Start("Resolve-PathGraphForJsonArray", $ConductionSignal) | Select-Object -Last 1
 
-    $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.%.@.Plan" | Select-Object -Last 1
-    if ($plan.Failure()) {
-        $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.@.Plan" | Select-Object -Last 1
+    ## TODO: Replace with a path discovery and cache mechanism.
+    $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.%.@.Plan" -FailureLogLevel "Verbose" | Select-Object -Last 1
+    if (-Not $plan.HasResult()) {
+        $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.@.Plan" -FailureLogLevel "Verbose" | Select-Object -Last 1
+    }
+    if (-Not $plan.HasResult()) {
+        $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.@.Plan" -FailureLogLevel "Verbose" | Select-Object -Last 1
     }
 
-    $sourcePath = $plan.GetResult().SourceWirePath
     # Pull plan fields
     $sourcesKey = $plan.GetResult().SourcesWirePath
     $idPath = $plan.GetResult().SourcesIdentifierWirePath
@@ -48,7 +51,7 @@ function Resolve-PathGraphForJsonArray {
 
     # Enforce token
     if ($template -notmatch '\{0\}') {
-        $opSignal.LogCritical("❌ SourcesWirePathTemplate must contain '{0}'. Template: '$template'")
+        $opSignal.LogCritical("❌ SourcesWirePathTemplate must contain '{0}'. Template: '$template'")  
         return $opSignal
     }
 
@@ -105,7 +108,7 @@ function Resolve-PathGraphForJsonArray {
     if ($sourcesKey) {
         foreach ($node in $signalMap.Values) {
             $jacket = $node.GetJacket()
-            $sourceSignal = Resolve-PathFromDictionary -Dictionary $jacket -Path $sourcesKey | Select-Object -Last 1
+            #$sourceSignal = Resolve-PathFromDictionary -Dictionary $jacket -Path $sourcesKey | Select-Object -Last 1
             <#
             if ($opSignal.MergeSignalAndVerifyFailure(@($sourceSignal))) {
                 return $opSignal.LogCritical("❌ Could not resolve sources from key: $sourcesKey")

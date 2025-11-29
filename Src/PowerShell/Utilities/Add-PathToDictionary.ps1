@@ -269,7 +269,13 @@ function Expand-SymbolsF {
             }
             elseif ($current -is [PSCustomObject] -or $current -is [System.Management.Automation.PSObject]) {
                 if (-not $current.PSObject.Properties[$key]) {
-                    Add-Member -InputObject $current -MemberType NoteProperty -Name $key -Value (@{})
+                    try {   
+                        Add-Member -InputObject $current -MemberType NoteProperty -Name $key -Value (@{})                        
+                    }
+                    catch {
+                        $opSignal.LogCritical("Exception adding member '$key': $_")
+                        return $opSignal
+                    }
                 }
                 $current = $current.$key
             }

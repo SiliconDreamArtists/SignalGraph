@@ -1,4 +1,4 @@
-function Resolve-GraphPlanInjectionContext {
+function Resolve-GraphPlanInjectionContext{
     [CmdletBinding()]
     param (
         [object]$ParentPlan,
@@ -9,7 +9,7 @@ function Resolve-GraphPlanInjectionContext {
         [Parameter(Mandatory)] [object]$Dynamic
     )
 
-    $opSignal = [Signal]::Start("Resolve-GraphPlanInjectionContext", $Plan) | Select-Object -Last 1
+$opSignal = [Signal]::Start("Resolve-GraphPlanInjectionContext", $Plan) | Select-Object -Last 1
 
     try {
         $context = @{

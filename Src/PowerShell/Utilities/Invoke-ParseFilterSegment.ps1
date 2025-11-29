@@ -1,5 +1,5 @@
 #TODO: Make Signal Doctrine Compliant
-function Parse-FilterSegment {
+function Invoke-ParseFilterSegment {
     param([string]$segment)
 
     $result = @{

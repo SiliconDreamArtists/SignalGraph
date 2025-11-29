@@ -12,7 +12,9 @@
 . "$PSScriptRoot/Utilities/Resolve-GraphPlanInjectionContext.ps1"
 . "$PSScriptRoot/Utilities/Move-PathInDictionary.ps1"
 . "$PSScriptRoot/Utilities/Resolve-PathGraphForJsonArray.ps1"
-. "$PSScriptRoot/Utilities/Parse-FilterSegment.ps1"
+. "$PSScriptRoot/Utilities/Invoke-ParseFilterSegment.ps1"
+
+. "$PSScriptRoot/Utilities/Convert-ToDictionary.ps1"
 
 Export-ModuleMember -Function Get-ResolvedValueFromPathSignal
 Export-ModuleMember -Function Convert-JsonToSignalGraph
@@ -22,6 +24,6 @@ Export-ModuleMember -Function Resolve-PathFromDictionary
 Export-ModuleMember -Function Resolve-GraphPlanInjectionContext
 Export-ModuleMember -Function Move-PathInDictionary
 Export-ModuleMember -Function Resolve-PathGraphForJsonArray
-Export-ModuleMember -Function Parse-FilterSegment
+Export-ModuleMember -Function Convert-ToDictionary
 
 
