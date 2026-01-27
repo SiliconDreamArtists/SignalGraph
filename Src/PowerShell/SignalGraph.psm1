@@ -14,6 +14,7 @@
 . "$PSScriptRoot/Utilities/Resolve-PathGraphForJsonArray.ps1"
 . "$PSScriptRoot/Utilities/Invoke-ParseFilterSegment.ps1"
 
+. "$PSScriptRoot/Utilities/Resolve-GraphForJsonArray.ps1"
 . "$PSScriptRoot/Utilities/Convert-ToDictionary.ps1"
 
 Export-ModuleMember -Function Get-ResolvedValueFromPathSignal
@@ -26,4 +27,5 @@ Export-ModuleMember -Function Move-PathInDictionary
 Export-ModuleMember -Function Resolve-PathGraphForJsonArray
 Export-ModuleMember -Function Convert-ToDictionary
 
+Export-ModuleMember -Function Resolve-GraphForJsonArray
 

@@ -78,6 +78,12 @@ class Graph {
         return $opSignal
     }
 
+    [Graph] CreateGraphForSignal([Signal]$Signal)
+    {
+        $Signal.Graph = [Graph]::Start("Graph", $Signal, $true)
+        return $Signal.Graph
+    }
+
     [Signal] RegisterResultAsSignal([string]$Key, [object]$Result) {
         $opSignal = [Signal]::Start("RegisterResultAsSignal:$Key", $this.Signal) | Select-Object -Last 1
         $resultSignal = [Signal]::Start($Key, $this.Signal) | Select-Object -Last 1
@@ -149,4 +155,15 @@ class Graph {
 
         return $opSignal
     }
+}
+
+
+function Resolve-Graph {
+            [CmdletBinding()]
+        param (
+            [Signal]$Signal
+        )
+
+    $Signal.Pointer = ([Graph]::Start($Signal.Name, $Signal, $true) | Select-Object -Last 1).GetResult()
+    return $Signal.Pointer
 }

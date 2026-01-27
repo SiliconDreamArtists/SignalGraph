@@ -1,6 +1,6 @@
 class SignalEntry {
     [string]$Level
-    [string]$Nature
+    [string[]]$Tags
     [string]$Message
     [string]$Exception
     [datetime]$CreatedDate
@@ -14,10 +14,10 @@ class SignalEntry {
         $this.CreatedDate = Get-Date
     }
 
-    SignalEntry([object]$signal, [string]$level, [string]$message, [string]$nature = "Unspecified", [string]$exception = $null) {
+    SignalEntry([object]$signal, [string]$level, [string]$message, [string[]]$tags = $null, [string]$exception = $null) {
         $this.Level = $level
         $this.Message = $message
-        $this.Nature = $nature
+        $this.Tags = $tags
         $this.CreatedDate = Get-Date
         $this.Exception = $exception
         $this.Signal = $signal

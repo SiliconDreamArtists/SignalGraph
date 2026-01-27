@@ -32,12 +32,12 @@ function Resolve-PathGraphForJsonArray {
     $opSignal = [Signal]::Start("Resolve-PathGraphForJsonArray", $ConductionSignal) | Select-Object -Last 1
 
     ## TODO: Replace with a path discovery and cache mechanism.
-    $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.%.@.Plan" -FailureLogLevel "Verbose" | Select-Object -Last 1
+    $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.%.@.Plan" -SignalLevel "Warning" -SignalTags @("Verbose") | Select-Object -Last 1
     if (-Not $plan.HasResult()) {
-        $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.@.Plan" -FailureLogLevel "Verbose" | Select-Object -Last 1
+        $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.@.Plan" -SignalLevel "Warning" -SignalTags @("Verbose") | Select-Object -Last 1
     }
     if (-Not $plan.HasResult()) {
-        $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.@.Plan" -FailureLogLevel "Verbose" | Select-Object -Last 1
+        $plan = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path "%.%.@.Plan" -SignalLevel "Warning" -SignalTags @("Verbose") | Select-Object -Last 1
     }
 
     # Pull plan fields

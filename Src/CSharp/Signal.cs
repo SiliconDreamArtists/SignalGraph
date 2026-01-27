@@ -14,7 +14,7 @@ namespace SignalGraph
     using Newtonsoft.Json;
 
     [DataContract]
-    public partial class Signal : ILogger, ISignal
+    public partial class    Signal : ILogger, ISignal
     {
         private const SignalFeedbackLevel FailureLevel = SignalFeedbackLevel.Critical;
 
@@ -34,6 +34,7 @@ namespace SignalGraph
         }
 
         public static bool HasLogger => logger != null;
+
 
         public static ILogger Logger
         {

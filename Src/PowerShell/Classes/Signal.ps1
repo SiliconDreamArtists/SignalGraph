@@ -1,23 +1,26 @@
 # Globals for external use only.
 $Global:SignalFeedbackLevel = @{
     Unspecified          = 0
-    SensitiveInformation = 1
-    Verbose              = 2
     Information          = 4
-    Diagram              = 8
     Warning              = 16
-    Retry                = 24
-    Recovery             = 32
-    Mute                 = 48
     Critical             = 64
 }
 
-$Global:SignalFeedbackNature = @{
-    Unspecified = "Unspecified"
-    Code        = "Code"
-    Operations  = "Operations"
-    Security    = "Security"
-    Content     = "Content"
+[Flags()]
+enum SignalTags {
+    Unspecified          = 0
+    SensitiveInformation = 1
+    Verbose              = 2
+    Code                 = 4
+    Diagram              = 8
+    Operations           = 16
+    Retry                = 32
+    Recovery             = 64
+    Mute                 = 128
+    Security             = 256
+    Content              = 512
+    Heal                 = 1024   # caller may take healing action before retry
+    PatchPlan            = 2048   # signal includes a plan patch overlay
 }
 
 class Signal {
@@ -51,105 +54,129 @@ class Signal {
         return $opSignal
     }
 
+    [object] CreateGraph()
+    {
+        return Resolve-Graph -Signal $this
+    }
+
     [Signal] LogMessage([string]$level, [string]$message) {
-        return $this.LogMessage($level, $message, "Unspecified", $null)
+        return $this.LogMessage($level, $message, $null)
     }
 
-    [Signal] LogMessage([string]$level, [string]$message, [Exception]$exception = $null) {
-        return $this.LogMessage($level, $message, "Unspecified", $exception)
+    [Signal] LogMessage([string]$level, [string]$message, [string[]]$tags) {
+        return $this.LogMessage($level, $message, $tags, $null)
     }
 
-    [Signal] LogMessage([string]$_level, [string]$message, [string]$nature = "Unspecified", [Exception]$exception = $null) {
+    [Signal] LogMessage([string]$_level, [string]$message, [string[]]$tags, [Exception]$exception = $null) {
         $exceptionMessage = if ($exception) { $exception.Message } else { $null }
 
-        $entry = [SignalEntry]::new($this, $_level, $message, $nature, $exceptionMessage)
+        $entry = [SignalEntry]::new($this, $_level, $message, $tags, $exceptionMessage)
         $this.Entries.Add($entry)
-        $this.UpdateLevel($_level)
+        $this.UpdateLevel($_level, $tags)
 
-        if ($Global:SignalLogger -ne $null) {
+        <# #>
+        if ($Global:SignalTelemeter -ne $null) {
             try {
-                & $Global:SignalLogger.Invoke($this, $entry)
+                & $Global:SignalTelemeter.Invoke($this, $entry)
             }
             catch {}
         }
+<##>#>
 
         if ($_level -eq "Critical") {
             $_level = "Critical"
+
+            if ($exceptionMessage)
+            {
+                $a = ""
+            }
         }
 
 
         return $this
     }
 
-    [Signal] LogVerbose([string]$message) {
-        return $this.LogMessage("Verbose", $message)
-    }
 
     [Signal] LogInformation([string]$message) {
         return $this.LogMessage("Information", $message)
     }
-    [Signal] LogDiagram([string]$message) {
-        return $this.LogMessage("Diagram", $message)
+
+    [Signal] LogInformation([string]$message, [string[]]$tags) {
+        return $this.LogMessage("Information", $message, $tags)
     }
 
     [Signal] LogWarning([string]$message) {
         return $this.LogMessage("Warning", $message)
     }
 
-    [Signal] LogRetry([string]$message) {
-        return $this.LogMessage("Retry", $message)
+    [Signal] LogWarning([string]$message, [string[]]$tags) {
+        return $this.LogMessage("Warning", $message, $tags)
     }
 
     [Signal] LogCritical([string]$message) {
         return $this.LogMessage("Critical", $message)
     }
 
+    [Signal] LogCritical([string]$message, [string[]]$tags) {
+        return $this.LogMessage("Critical", $message, $tags)
+    }
+
+    # TODO: Review removing the tags portion of these shortcut methods.
+    [Signal] LogVerbose([string]$message) {
+        return $this.LogMessage("Information", $message, @("Verbose"))
+    }
+
+    [Signal] LogDiagram([string]$message) {
+        return $this.LogMessage("Information", $message, @("Diagram"))
+    }
+
+    [Signal] LogRetry([string]$message) {
+        return $this.LogMessage("Information", $message, @("Retry"))
+    }
+
     [Signal] LogRecovery([string]$message) {
-        return $this.LogMessage("Recovery", $message)
+        return $this.LogMessage("Information", $message, @("Recovery"))
     }
 
     [Signal] LogMute([string]$message) {
-        return $this.LogMessage("Mute", $message)
+        return $this.LogMessage("Information", $message, @("Mute"))
     }
 
-    [void] UpdateLevel([string]$newLevel) {
-        $graph = @{
-            "Unspecified"          = 0
-            "SensitiveInformation" = 1
-            "Verbose"              = 2
-            "Information"          = 4
-            "Diagram"              = 8
-            "Warning"              = 16
-            "Retry"                = 24
-            "Recovery"             = 32
-            "Mute"                 = 48
-            "Critical"             = 64
+[void] UpdateLevel([string]$newLevel, [string[]]$tags) {
+    $graph = @{
+        "Unspecified" = 0
+        "Information" = 4
+        "Warning"     = 16
+        "Critical"    = 64
+    }
+
+    $newValue     = $graph[$newLevel]
+    $currentValue = $graph[$this.Level]
+
+    switch ($true) {
+        { $tags -contains "Recovery" } {
+            if ($this.Level -eq "Critical") {
+                $this.Level = "Warning"
+            }
+            break
         }
-
-        $newValue = $graph[$newLevel]
-        $currentValue = $graph[$this.Level]
-
-        switch ($newLevel) {
-            "Recovery" {
-                if ($this.Level -eq "Critical") {
-                    $this.Level = "Warning"
-                }
+        { $tags -contains "Mute" } {
+            if ($this.Level -eq "Critical") {
+                $this.Level = "Warning"
             }
-            "Mute" {
-                if ($this.Level -eq "Critical") {
-                    $this.Level = "Warning"
-                }
-            }
-            "Diagram" {
-                # No action needed, as Diagram is a non-intrusive level.
-            }
-            default {
-                if ($newValue -gt $currentValue) {
-                    $this.Level = $newLevel
-                }
+            break
+        }
+        { $tags -contains "Diagram" } {
+            # Diagram is non-intrusive; do nothing.
+            break
+        }
+        default {
+            if ($newValue -gt $currentValue) {
+                $this.Level = $newLevel
             }
         }
     }
+}
 
     [bool] Failure() {
         return $this.Level -eq 'Critical'
@@ -161,10 +188,10 @@ class Signal {
 
     [Signal] MergeSignal([Signal[]]$signals) {
         foreach ($sig in $signals) {
-            if ($null -ne $sig) {
+            if ($null -ne $sig -and $this -ne $sig) {
                 foreach ($entry in $sig.Entries) {
                     $this.Entries.Add($entry)
-                    $this.UpdateLevel($entry.Level)
+                    $this.UpdateLevel($entry.Level, $entry.Tags)
                 }
             }
         }
@@ -222,6 +249,10 @@ class Signal {
     }
 
     [void] SetResult([object]$value) {
+        if ($value -is [string] -and $value -eq "Signal")
+        {
+            $value = "Signal"
+        }
         $this.SetResult($value, $false)
     }
 
@@ -236,8 +267,17 @@ class Signal {
     }
         
     [object] GetResult() {
+        return $this.GetResult($false)
+    }
+        
+    [object] GetResult([bool]$UnwrapSignal) {
         if ($null -ne $this.Result) {
             $this.LogInformation("✅ Retrieved result from signal.")
+            
+            if ($UnwrapSignal -and $this.Result -is [Signal])
+            {
+                return $this.Result.GetResult($UnwrapSignal)
+            }
             return $this.Result
         }
         else {

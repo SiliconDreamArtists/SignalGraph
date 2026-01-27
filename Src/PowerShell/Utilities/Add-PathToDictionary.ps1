@@ -17,24 +17,24 @@ function Add-PathToDictionary {
     }
 
     function Expand-Symbols {
-    param ([Parameter(Mandatory)][string[]]$segments)
+        param ([Parameter(Mandatory)][string[]]$segments)
 
-    if ($segments -isnot [System.Array]) {
-        $segments = @($segments)
+        if ($segments -isnot [System.Array]) {
+            $segments = @($segments)
+        }
+
+        return $segments | ForEach-Object {
+            if ($symbolMap.ContainsKey($_)) { $symbolMap[$_] } else { $_ }
+        }
     }
 
-    return $segments | ForEach-Object {
-        if ($symbolMap.ContainsKey($_)) { $symbolMap[$_] } else { $_ }
-    }
-}
+    function Expand-SymbolsF {
+        param ([Parameter(Mandatory)][string[]]$segments)
 
-function Expand-SymbolsF {
-    param ([Parameter(Mandatory)][string[]]$segments)
-
-    return @($segments) | ForEach-Object {
-        if ($symbolMap.ContainsKey($_)) { $symbolMap[$_] } else { $_ }
+        return @($segments) | ForEach-Object {
+            if ($symbolMap.ContainsKey($_)) { $symbolMap[$_] } else { $_ }
+        }
     }
-}
 
     function Update-ContextFromSegment {
         param (
@@ -112,8 +112,7 @@ function Expand-SymbolsF {
                 }
                 "Result" {
                     if ($current -is [Signal]) {
-                        if ($isFinal)
-                        {
+                        if ($isFinal) {
                             $current.SetResult($Value)
                             $opSignal.LogInformation("📥 Wrote '$key' → $($Value.GetType().Name)")
                         }
@@ -189,7 +188,7 @@ function Expand-SymbolsF {
             # ░▒▓█ FINAL WRITE █▓▒░
             if ($isFinal) {
                 if ($currentContext -is [Graph]) {
-                    if ($value -is [Signal]) {
+                    if ($Value -is [Signal]) {
                         $currentContext.RegisterSignal($key, $Value)
                     }
                     else {
@@ -292,6 +291,43 @@ function Expand-SymbolsF {
                 }
                 $current = $next
             }
+
+            # ░▒▓█ ARRAY NAME SELECTOR (NON-NUMERIC) █▓▒░
+            # Navigate into an array by selecting an element with .Name == $key.
+            # Does NOT create/append. If missing, caller should append separately.
+            elseif (($current -is [System.Collections.IEnumerable]) -and -not ($current -is [string]) -and ($key -notmatch '^\d+$')) {
+                $match = $null
+
+                # Determine selector property + value
+                $propertyName = 'Name'
+                $propertyValue = $key
+
+                if ($key -match '^(?<prop>[^=]+)=(?<val>.+)$') {
+                    $propertyName = $matches['prop']
+                    $propertyValue = $matches['val']
+                }
+
+                foreach ($item in $current) {
+                    if ($null -eq $item) { continue }
+
+                    $prop = $item.PSObject.Properties[$propertyName]
+                    if ($null -ne $prop -and "$($prop.Value)" -eq $propertyValue) {
+                        $match = $item
+                        break
+                    }
+                }
+
+                if ($null -eq $match) {
+                    $opSignal.LogCritical(
+                        "❌ Array navigation failed: no element with $propertyName='$propertyValue' found. Append the object to the array in a separate step, then retry path navigation."
+                    )
+                    return $opSignal
+                }
+
+                $current = $match
+                continue
+            }
+
             else {
                 $opSignal.LogCritical("❌ Unsupported type at '$key': $($current.GetType().FullName)")
                 return $opSignal
