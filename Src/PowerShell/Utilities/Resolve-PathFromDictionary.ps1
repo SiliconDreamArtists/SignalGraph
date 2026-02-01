@@ -29,7 +29,17 @@ function Resolve-PathFromDictionary {
         "&" = "Binding"
         "!" = "Polarity"
     }
-        
+
+    # ░▒▓█ XPATH TAIL █▓▒░
+    # If '^' exists, everything after it is treated as an XPath-tail mini language
+    $basePath = $Path
+    $xpathTail = $null
+
+    $caretIndex = $Path.IndexOf('^')
+    if ($caretIndex -ge 0) {
+        $basePath = $Path.Substring(0, $caretIndex)
+        $xpathTail = $Path.Substring($caretIndex + 1)
+    }
 
     function Handle-NullWithDefault {
         param (
@@ -70,13 +80,163 @@ function Resolve-PathFromDictionary {
         }
     }   
 
+        function ConvertFrom-Xml {
+        param (
+            [Parameter(Mandatory)]
+            [System.Xml.XmlNode]$Node
+        )
+
+        # If the node is a simple text node
+        if ($Node.ChildNodes.Count -eq 1 -and $Node.FirstChild.NodeType -eq 'Text') {
+            return $Node.InnerText
+        }
+
+        $hash = @{}
+
+        # Attributes (optional but useful)
+        foreach ($attr in $Node.Attributes) {
+            $hash["@${($attr.Name)}"] = $attr.Value
+        }
+
+        foreach ($child in $Node.ChildNodes | Where-Object NodeType -eq 'Element') {
+            $value = ConvertFrom-Xml -Node $child
+
+            if ($hash.ContainsKey($child.Name)) {
+                # Promote to array
+                if ($hash[$child.Name] -isnot [System.Collections.IList]) {
+                    $hash[$child.Name] = @($hash[$child.Name])
+                }
+                $hash[$child.Name] += $value
+            }
+            else {
+                $hash[$child.Name] = $value
+            }
+        }
+
+        return [pscustomobject]$hash
+    }
+
+    function Convert-SimpleXPathTailToXPath {
+        param([Parameter(Mandatory)][string]$Tail)
+
+        # Allow optional leading '.' after '^'
+        $t = $Tail -replace '^\.', ''
+
+        # Telemetry.Data -> Telemetry/Data
+        $t = $t -replace '\.', '/'
+
+        # [Name=Trace] -> [@Name='Trace']
+        $t = [regex]::Replace($t, '\[(?<k>[^=\]]+?)=(?<v>[^\]]+?)\]', {
+                param($m)
+                $k = $m.Groups['k'].Value.Trim()
+                $v = $m.Groups['v'].Value.Trim().Trim("'`"")   # strip quotes if present
+                "[@$k='$v']"
+            })
+
+        # Default to searching anywhere in the doc
+        if ($t -notmatch '^(\/|\/\/)') {
+            $t = "//$t"
+        }
+
+        return $t
+    }
+
+    function Invoke-ResolveXPathTail {
+        param (
+            [Parameter(Mandatory)]
+            [Signal]$OperationSignal,
+
+            [Parameter(Mandatory)]
+            $Current,
+
+            [Parameter(Mandatory)]
+            [string]$XPathTail,
+
+            [Parameter(Mandatory)]
+            [bool]$HasDefault,
+
+            $Default,
+
+            [string]$SignalLevel = "Critical",
+
+            [string[]]$SignalTags = $null
+        )
+
+        $isXml = ($Current -is [xml]) -or
+        ($Current -is [System.Xml.XmlDocument]) -or
+        ($Current -is [System.Xml.XmlNode])
+
+        if (-not $isXml) {
+            $message = "❌ XPath tail '^' encountered but current is not XML. Type: $($Current.GetType().FullName). Tail: $XPathTail"
+            return Handle-NullWithDefault `
+                -OperationSignal $OperationSignal `
+                -HasDefault $HasDefault `
+                -Default $Default `
+                -DefaultForNullMessage "$message Applying default." `
+                -NullMessage $message `
+                -SignalLevel $SignalLevel `
+                -SignalTags $SignalTags
+        }
+
+        $xpath = Convert-SimpleXPathTailToXPath -Tail $XPathTail
+
+        try {
+            $selected = $Current.SelectNodes($xpath)
+
+            if ($null -eq $selected) {
+                $message = "❌ XPath returned null. XPath: $xpath"
+                return Handle-NullWithDefault `
+                    -OperationSignal $OperationSignal `
+                    -HasDefault $HasDefault `
+                    -Default $Default `
+                    -DefaultForNullMessage "$message Applying default." `
+                    -NullMessage $message `
+                    -SignalLevel $SignalLevel `
+                    -SignalTags $SignalTags
+            }
+
+            $asArray = @()
+            foreach ($n in $selected) { $asArray += $n }
+
+            if ($asArray.Count -eq 0) {
+                $message = "❌ XPath matched 0 nodes. XPath: $xpath"
+                return Handle-NullWithDefault `
+                    -OperationSignal $OperationSignal `
+                    -HasDefault $HasDefault `
+                    -Default $Default `
+                    -DefaultForNullMessage "$message Applying default." `
+                    -NullMessage $message `
+                    -SignalLevel $SignalLevel `
+                    -SignalTags $SignalTags
+            }
+            elseif ($asArray.Count -eq 1) {
+                $OperationSignal.LogVerbose("🧬 XPath applied: $xpath")
+                return $asArray[0]
+            }
+            else {
+                $OperationSignal.LogVerbose("🧬 XPath applied (multiple results): $xpath")
+                return $asArray
+            }
+        }
+        catch {
+            $message = "Exception during XPath select: $_ (XPath: $xpath)"
+            return Handle-NullWithDefault `
+                -OperationSignal $OperationSignal `
+                -HasDefault $HasDefault `
+                -Default $Default `
+                -DefaultForNullMessage "$message Applying default." `
+                -NullMessage $message `
+                -SignalLevel $SignalLevel `
+                -SignalTags $SignalTags
+        }
+    }
+
     try {
-        $char = $Path -Contains '\:' ? '\:' : '\.'
-        if ($char -eq '\:')
-        {
+        $char = $basePath -Contains '\:' ? '\:' : '\.'
+        if ($char -eq '\:') {
             $char = $char
         }
-        $rawSegments = $Path -split '\.'
+        $rawSegments = $basePath -split '\.'
         $segments = Expand-Symbols $rawSegments
         $current = $Dictionary
 
@@ -232,7 +392,7 @@ function Resolve-PathFromDictionary {
                         }
                         else {
                             $typeName = if ($null -eq $current) { '<null>' } else { $current.GetType().FullName }
-                            "❌ Not Found sgment name in type: $typeName, lastSegmentName: $lastSegmentName"
+                            "❌ Not Found segment name in type: $typeName, lastSegmentName: $lastSegmentName, key: $key"
                         }
 
                         return Handle-NullWithDefault -DefaultForNullMessage " $message, applying default." -NullMessage  $message -SignalLevel $SignalLevel -SignalTags $SignalTags  -HasDefault $hasDefault -Default $Default -OperationSignal $opSignal 
@@ -268,6 +428,26 @@ function Resolve-PathFromDictionary {
             }
 
             $lastSegmentName = $segment 
+        }
+
+        if ($xpathTail) {
+            $result = Invoke-ResolveXPathTail `
+                -OperationSignal $opSignal `
+                -Current $current `
+                -XPathTail $xpathTail `
+                -HasDefault $hasDefault `
+                -Default $Default `
+                -SignalLevel $SignalLevel `
+                -SignalTags $SignalTags | Select-Object -Last 1
+
+            # If a Signal comes back, it's an early-exit failure
+            # TODO: Change this to merge with $opsignal and null $current
+            if ($result -is [Signal]) {
+                return $result
+            }
+
+            $convertedResult = ConvertFrom-Xml -Node $result
+            $current = $convertedResult
         }
 
         $opSignal.SetResult($current)

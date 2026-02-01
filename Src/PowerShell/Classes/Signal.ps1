@@ -24,6 +24,7 @@ enum SignalTags {
 }
 
 class Signal {
+    [bool]$IsLogged = $false
     [object]$Pointer = $null
     [object]$ReversePointer = $null
     [object]$Jacket = $null
@@ -95,7 +96,6 @@ class Signal {
 
         return $this
     }
-
 
     [Signal] LogInformation([string]$message) {
         return $this.LogMessage("Information", $message)
@@ -248,11 +248,27 @@ class Signal {
         }
     }
 
+    [bool] HasJacketResult() {
+        return $this.HasJacket() -and $this.GetJacket().HasResult()
+    }
+
+    [object] GetJacketResult() {
+        return $this.GetJacketResult($false)
+    }
+
+    [object] GetJacketResult([bool]$UnwrapSignal) {
+        return $this.GetJacket().GetResult($UnwrapSignal)
+    }
+
+    [Signal] SetJacketResult([object]$value) {
+        $thisJacket = $this.HasJacket() ? $this.GetJacket() : [Signal]::Start("$this.Name Jacket") | Select-Object -Last 1
+        $this.SetJacket($thisJacket)
+        $thisJacket.SetResult($value, $false)
+
+        return $thisJacket
+    }
+
     [void] SetResult([object]$value) {
-        if ($value -is [string] -and $value -eq "Signal")
-        {
-            $value = "Signal"
-        }
         $this.SetResult($value, $false)
     }
 
