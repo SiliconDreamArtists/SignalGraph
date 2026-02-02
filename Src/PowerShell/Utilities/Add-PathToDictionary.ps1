@@ -272,7 +272,7 @@ function Add-PathToDictionary {
                         Add-Member -InputObject $current -MemberType NoteProperty -Name $key -Value (@{})                        
                     }
                     catch {
-                        $opSignal.LogCritical("Exception adding member '$key': $_")
+                        $opSignal.LogCritical("Exception adding member '$key': $_", $null, $_)
                         return $opSignal
                     }
                 }
@@ -335,7 +335,7 @@ function Add-PathToDictionary {
         }
     }
     catch {
-        $opSignal.LogCritical("❌ Exception during Add-PathToDictionary: $_")
+        $opSignal.LogCritical("❌ Exception during Add-PathToDictionary: $($_.Exception.Message)", $null, $_)
         return $opSignal
     }
 

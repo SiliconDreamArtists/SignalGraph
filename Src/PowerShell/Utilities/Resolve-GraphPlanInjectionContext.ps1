@@ -113,7 +113,7 @@ $opSignal = [Signal]::Start("Resolve-GraphPlanInjectionContext", $Plan) | Select
         return $opSignal
     }
     catch {
-        $opSignal.LogCritical("🔥 Exception in Resolve-GraphPlanInjectionContext: $_")
+        $opSignal.LogCritical("🔥 Exception in Resolve-GraphPlanInjectionContext: $_", $null, $_)
         return $opSignal
     }
 }

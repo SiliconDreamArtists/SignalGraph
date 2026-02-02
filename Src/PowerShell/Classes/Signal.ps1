@@ -1,9 +1,9 @@
 # Globals for external use only.
 $Global:SignalFeedbackLevel = @{
     Unspecified          = 0
-    Information          = 4
-    Warning              = 16
-    Critical             = 64
+    Information          = 1000
+    Warning              = 2000
+    Critical             = 3000
 }
 
 [Flags()]
@@ -21,16 +21,24 @@ enum SignalTags {
     Content              = 512
     Heal                 = 1024   # caller may take healing action before retry
     PatchPlan            = 2048   # signal includes a plan patch overlay
+
+
+    TelemetryScheduled   = 4096
+    TelemetrySent        = 8192
+
 }
 
 class Signal {
-    [bool]$IsLogged = $false
+    [string[]]$Tags
     [object]$Pointer = $null
     [object]$ReversePointer = $null
     [object]$Jacket = $null
     [object]$Result = $null
     [string]$Name
     [string]$Level = 'Information'
+
+    [object]$Meta = [PSCustomObject]@{}
+
     [System.Collections.Generic.List[SignalEntry]]$Entries = [System.Collections.Generic.List[SignalEntry]]::new()
 
     Signal() {}
@@ -46,7 +54,7 @@ class Signal {
         [object]$reversePointer = $null
     ) {
         $opSignal = [Signal]::new()
-        $opSignal.Name = $name
+        $opSignal.Name = "⭐" + $name
 
         if ($null -ne $reversePointer) {
             $opSignal.SetReversePointer($reversePointer) | Out-Null
@@ -60,6 +68,42 @@ class Signal {
         return Resolve-Graph -Signal $this
     }
 
+
+    [void]AddTag([string]$tag) {
+        if (-not $this.Tags)
+        {
+            $this.Tags = @()
+        }
+
+        if (-not ($this.Tags -contains $tag)) {
+            $this.Tags += $tag
+        }
+
+        $this.AddProperty("Tags", @($this.Tags))
+    }
+
+    [void]AddProperty([string]$key, [object]$value) {
+        $current = $this.Meta
+        if (-not $current.PSObject.Properties[$key]) {
+            Add-Member -InputObject $current -MemberType NoteProperty -Name $key -Value $Value
+        }
+        else {
+            $current.$key = $Value
+        }
+    }
+    
+    [string] get_MetaContent() {
+        return $this.Meta | ConvertTo-Json -Depth 10
+    }
+
+    [int] get_LevelValue() {
+        if ($Global:SignalFeedbackLevel.ContainsKey($this.Level)) {
+            return $Global:SignalFeedbackLevel[$this.Level]
+        }
+
+        return $Global:SignalFeedbackLevel.Unspecified
+    }
+
     [Signal] LogMessage([string]$level, [string]$message) {
         return $this.LogMessage($level, $message, $null)
     }
@@ -69,9 +113,10 @@ class Signal {
     }
 
     [Signal] LogMessage([string]$_level, [string]$message, [string[]]$tags, [Exception]$exception = $null) {
-        $exceptionMessage = if ($exception) { $exception.Message } else { $null }
+#        $exceptionMessage = if ($exception) { $exception.Message } else { $null }
+#        $entry = [SignalEntry]::new($this, $_level, $message, $tags, $exceptionMessage, $null)
 
-        $entry = [SignalEntry]::new($this, $_level, $message, $tags, $exceptionMessage)
+        $entry = [SignalEntry]::new($this, $_level, $message, $tags, $exception, $null)
         $this.Entries.Add($entry)
         $this.UpdateLevel($_level, $tags)
 
@@ -87,7 +132,7 @@ class Signal {
         if ($_level -eq "Critical") {
             $_level = "Critical"
 
-            if ($exceptionMessage)
+            if ($exception)
             {
                 $a = ""
             }
@@ -116,6 +161,21 @@ class Signal {
     [Signal] LogCritical([string]$message) {
         return $this.LogMessage("Critical", $message)
     }
+
+    [Signal] LogCritical([string]$message, [string[]]$tags, [Exception]$exception) {
+        return $this.LogMessage("Critical", $message, $tags, $exception)
+    }
+
+    [Signal] LogCritical([string]$message, [string[]]$tags, [System.Management.Automation.ErrorRecord]$err) {
+        $ex = if ($err) { $err.Exception } else { $null }
+        return $this.LogMessage("Critical", $message, $tags, $ex)
+    }
+
+    <#
+    [Signal] LogCritical([string]$message, [string[]]$tags, [Exception]$exception) {
+        return $this.LogMessage("Critical", $message, $tags, $exception)
+    }
+        #>
 
     [Signal] LogCritical([string]$message, [string[]]$tags) {
         return $this.LogMessage("Critical", $message, $tags)
@@ -239,11 +299,11 @@ class Signal {
     
     [System.Collections.Generic.List[SignalEntry]] GetEntries() {
         if ($null -ne $this.Entries) {
-            $this.LogInformation("🧵 Retrieved Entries from signal.")
+ #           $this.LogInformation("🧵 Retrieved Entries from signal.")
             return $this.Entries
         }
         else {
-            $this.LogWarning("⚠️ No Entries present on signal.")
+  #          $this.LogWarning("⚠️ No Entries present on signal.")
             return $null
         }
     }
@@ -268,6 +328,10 @@ class Signal {
         return $thisJacket
     }
 
+    [void] SetMeta([object]$value) {
+        $this.Meta = $value
+    }
+
     [void] SetResult([object]$value) {
         $this.SetResult($value, $false)
     }
@@ -288,7 +352,7 @@ class Signal {
         
     [object] GetResult([bool]$UnwrapSignal) {
         if ($null -ne $this.Result) {
-            $this.LogInformation("✅ Retrieved result from signal.")
+ #           $this.LogInformation("✅ Retrieved result from signal.")
             
             if ($UnwrapSignal -and $this.Result -is [Signal])
             {
@@ -297,7 +361,7 @@ class Signal {
             return $this.Result
         }
         else {
-             $this.LogCritical("❌ Attempted to retrieve result but no result is present in signal.")
+  #           $this.LogCritical("❌ Attempted to retrieve result but no result is present in signal.")
             return $null
         }
     }
@@ -335,11 +399,11 @@ class Signal {
 
     [object] GetReversePointer() {
         if ($null -ne $this.ReversePointer) {
-            $this.LogInformation("✅ Retrieved ReversePointer from signal.")
+   #         $this.LogInformation("✅ Retrieved ReversePointer from signal.")
             return $this.ReversePointer
         }
         else {
-            $this.LogWarning("⚠️ No ReversePointer content present in signal.")
+    #        $this.LogWarning("⚠️ No ReversePointer content present in signal.")
             return $null
         }
     }
@@ -372,11 +436,11 @@ class Signal {
 
     [object] GetPointer() {
         if ($null -ne $this.Pointer) {
-            $this.LogInformation("✅ Retrieved Pointer from signal.")
+#            $this.LogInformation("✅ Retrieved Pointer from signal.")
             return $this.Pointer
         }
         else {
-            $this.LogWarning("⚠️ No Pointer content present in signal.")
+ #           $this.LogWarning("⚠️ No Pointer content present in signal.")
             return $null
         }
     }
@@ -419,11 +483,11 @@ class Signal {
 
     [object] GetJacket() {
         if ($null -ne $this.Jacket) {
-            $this.LogInformation("🧵 Retrieved Jacket from signal.")
+     #       $this.LogInformation("🧵 Retrieved Jacket from signal.")
             return $this.Jacket
         }
         else {
-            $this.LogWarning("⚠️ No Jacket present on signal.")
+      #      $this.LogWarning("⚠️ No Jacket present on signal.")
             return $null
         }
     }

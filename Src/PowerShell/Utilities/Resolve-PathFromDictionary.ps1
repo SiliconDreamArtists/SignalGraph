@@ -25,9 +25,12 @@ function Resolve-PathFromDictionary {
         "@" = "Result"
         "$" = "Signal"
         "#" = "Grid"
+
+        # Provisional, not in use
         ":" = "Dimension"
         "&" = "Binding"
         "!" = "Polarity"
+        "[" = "Meta"
     }
 
     # ░▒▓█ XPATH TAIL █▓▒░
@@ -411,6 +414,57 @@ function Resolve-PathFromDictionary {
                 $current = $value
             }
             elseif ($current.GetType().IsClass -and $current.GetType().Namespace -ne "System") {
+                $type  = $current.GetType()
+                $props = $type.GetProperties() | ForEach-Object Name
+                $methods = $type.GetMethods() | ForEach-Object Name
+
+                $prop = $type.GetProperty($key)
+
+                # 1) Normal property path
+                if ($null -ne $prop) {
+                    $value = $prop.GetValue($current)
+
+                    if ($null -eq $value) {
+                        $message = "Cannot access '$key' on '$($type.Name)' (lastSegmentName: $lastSegmentName, available props: $($props -join ', '))"
+                        return Handle-NullWithDefault -DefaultForNullMessage " $message, applying default." -NullMessage $message -SignalLevel $SignalLevel -SignalTags $SignalTags -HasDefault $hasDefault -Default $Default -OperationSignal $opSignal
+                    }
+
+                    $current = $value
+                    continue
+                }
+
+                # 2) Method-backed getter fallback (e.g. get_LevelValue())
+                $getterNames = @(
+                    "get_$key",     # PowerShell/C# property getter convention
+                    "Get$key",       # optional friendly convention
+                    "$key"         # Optional Method only way
+                )
+
+                $getter = $null
+                foreach ($name in $getterNames) {
+                    $getter = $type.GetMethod($name, [Type[]]@())
+                    if ($null -ne $getter) { break }
+                }
+
+                if ($null -ne $getter) {
+                    $value = $getter.Invoke($current, @())
+
+                    if ($null -eq $value) {
+                        $message = "Getter '$($getter.Name)()' returned null for '$key' on '$($type.Name)' (lastSegmentName: $lastSegmentName)"
+                        return Handle-NullWithDefault -DefaultForNullMessage " $message, applying default." -NullMessage $message -SignalLevel $SignalLevel -SignalTags $SignalTags -HasDefault $hasDefault -Default $Default -OperationSignal $opSignal
+                    }
+
+                    $current = $value
+                    continue
+                }
+
+                # 3) Not found (property or getter)
+                $message = "Cannot access '$key' on '$($type.Name)' (lastSegmentName: $lastSegmentName, available props: $($props -join ', '), available methods: $($methods -join ', '))"
+                return Handle-NullWithDefault -DefaultForNullMessage " $message, applying default." -NullMessage $message -SignalLevel $SignalLevel -SignalTags $SignalTags -HasDefault $hasDefault -Default $Default -OperationSignal $opSignal
+            }
+
+            <#
+            elseif ($current.GetType().IsClass -and $current.GetType().Namespace -ne "System") {
                 $type = $current.GetType()
                 $prop = $type.GetProperty($key)
                 $props = $type.GetProperties() | ForEach-Object Name
@@ -422,6 +476,7 @@ function Resolve-PathFromDictionary {
 
                 $current = $value
             }
+                #>
             else {
                 $opSignal.LogMessage($SignalLevel, "Unsupported traversal type: $($current.GetType().FullName) (lastSegmentName: $lastSegmentName)", $SignalTags)
                 return $opSignal

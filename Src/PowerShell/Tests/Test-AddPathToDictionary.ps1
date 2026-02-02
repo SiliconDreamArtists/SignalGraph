@@ -53,7 +53,7 @@ function Test-Case {
         }
     }
     catch {
-        $opSignal.LogCritical("❌ Error while evaluating result: $_")
+        $opSignal.LogCritical("❌ Error while evaluating result: $_", $null, $_)
     }
 
     return $opSignal

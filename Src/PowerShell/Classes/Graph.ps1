@@ -124,7 +124,7 @@ class Graph {
             return $json
         }
         catch {
-            $opSignal.LogCritical("🔥 Exception during Graph.ToJson(): $($_.Exception.Message)")
+            $opSignal.LogCritical("🔥 Exception during Graph.ToJson(): $($_.Exception.Message)", $null, $_)
             return $null
         }
     }
@@ -149,7 +149,7 @@ class Graph {
             $opSignal.LogInformation("✅ Successfully reconstructed Graph from JSON.")
         }
         catch {
-            $opSignal.LogCritical("🔥 Exception in Graph.FromJson: $($_.Exception.Message)")
+            $opSignal.LogCritical("🔥 Exception in Graph.FromJson: $($_.Exception.Message)", $null, $_)
             $opSignal.IsTerminal = $true
         }
 

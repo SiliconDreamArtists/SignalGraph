@@ -37,7 +37,7 @@ function Resolve-PathHydration {
         $opSignal.LogInformation("✅ Resolved hydration path: '$symbolicPath'")
     }
     catch {
-        $opSignal.LogCritical("❌ Exception during Resolve-PathHydration: $_")
+        $opSignal.LogCritical("❌ Exception during Resolve-PathHydration: $_", $null, $_)
         $opSignal.SetResult("")
     }
 
