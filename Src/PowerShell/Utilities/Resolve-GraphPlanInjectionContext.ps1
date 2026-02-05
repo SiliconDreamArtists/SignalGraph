@@ -36,7 +36,7 @@ $opSignal = [Signal]::Start("Resolve-GraphPlanInjectionContext", $Plan) | Select
 
             # Enforce token presence
             if ($tpl -notmatch '\{0\}') {
-                $opSignal.LogCritical("❌ SourceWirePathTemplate must contain '{0}'. Template: '$tpl'")
+                $opSignal.LogCritical("SourceWirePathTemplate must contain '{0}'. Template: '$tpl'")
                 return $opSignal
             }
 
@@ -46,7 +46,7 @@ $opSignal = [Signal]::Start("Resolve-GraphPlanInjectionContext", $Plan) | Select
             # Resolve the source item
             $sourceSig = Resolve-PathFromDictionary -Dictionary $Dynamic -Path $path | Select-Object -Last 1
             if ($opSignal.MergeSignalAndVerifyFailure(@($sourceSig))) {
-                $opSignal.LogWarning("⚠️ Failed to resolve SourceWirePath via template. For SourceWirePath='$($Plan.SourceWirePath)' → '$path'")
+                $opSignal.LogWarning("Failed to resolve SourceWirePath via template. For SourceWirePath='$($Plan.SourceWirePath)' → '$path'")
                 return $opSignal
             }
 
@@ -67,7 +67,7 @@ $opSignal = [Signal]::Start("Resolve-GraphPlanInjectionContext", $Plan) | Select
         if ($Plan.TargetWirePath -and $Plan.TargetIdentifierWirePath) {
             $idSig = Resolve-PathFromDictionary -Dictionary $Dynamic -Path $Plan.TargetIdentifierWirePath | Select-Object -Last 1
             if ($opSignal.MergeSignalAndVerifyFailure($idSig)) {
-                $opSignal.LogWarning("⚠️ Failed to resolve TargetIdentifierWirePath: $($Plan.TargetIdentifierWirePath)")
+                $opSignal.LogWarning("Failed to resolve TargetIdentifierWirePath: $($Plan.TargetIdentifierWirePath)")
                 return $opSignal
             }
 
@@ -92,7 +92,7 @@ $opSignal = [Signal]::Start("Resolve-GraphPlanInjectionContext", $Plan) | Select
             }
             
             if ($opSignal.MergeSignalAndVerifyFailure($targetSig)) {
-                $opSignal.LogWarning("⚠️ Failed to resolve target signal at path: $basePath")
+                $opSignal.LogWarning("Failed to resolve target signal at path: $basePath")
                 return $opSignal
             }
 

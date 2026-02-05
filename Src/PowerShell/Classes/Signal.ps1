@@ -1,10 +1,23 @@
 # Globals for external use only.
 $Global:SignalFeedbackLevel = @{
     Unspecified          = 0
-    Information          = 1000
-    Warning              = 2000
-    Critical             = 3000
+    Information          = 1
+    Warning              = 2
+    Critical             = 3
 }
+
+$Global:EmojiMap = @{
+    Unspecified         = ''
+    Information         = '✅'
+    Warning             = '⚠️'
+    Critical            = '❌'
+    Exception           = '🔥'
+    Signal              = '⭐'
+    SignalEntry         = '✨'
+    Success             = '✅'
+    Failure             = '❌'
+}
+
 
 [Flags()]
 enum SignalTags {
@@ -35,8 +48,9 @@ class Signal {
     [object]$Jacket = $null
     [object]$Result = $null
     [string]$Name
+    [string]$Id = [guid]::NewGuid().ToString()
     [string]$Level = 'Information'
-
+[int]$LevelId = 4
     [object]$Meta = [PSCustomObject]@{}
 
     [System.Collections.Generic.List[SignalEntry]]$Entries = [System.Collections.Generic.List[SignalEntry]]::new()
@@ -54,13 +68,24 @@ class Signal {
         [object]$reversePointer = $null
     ) {
         $opSignal = [Signal]::new()
-        $opSignal.Name = "⭐" + $name
+        $opSignal.Name = $name
 
         if ($null -ne $reversePointer) {
             $opSignal.SetReversePointer($reversePointer) | Out-Null
         }
 
         return $opSignal
+    }
+
+    [string] get_EmojiTag() {
+        $a = $Global:EmojiMap['Signal']
+        $b = $Global:EmojiMap[$this.Level]
+
+        $val = $a+$b
+        $this.AddProperty("EmojiTag", $val)
+
+    #    return ""
+        return $val
     }
 
     [object] CreateGraph()
@@ -82,7 +107,7 @@ class Signal {
         $this.AddProperty("Tags", @($this.Tags))
     }
 
-    [void]AddProperty([string]$key, [object]$value) {
+    [object]AddProperty([string]$key, [object]$value) {
         $current = $this.Meta
         if (-not $current.PSObject.Properties[$key]) {
             Add-Member -InputObject $current -MemberType NoteProperty -Name $key -Value $Value
@@ -90,13 +115,21 @@ class Signal {
         else {
             $current.$key = $Value
         }
+
+        return $value
     }
-    
+
+    [string[]] GetTags() {
+        return $this.Tags
+    }
+
     [string] get_MetaContent() {
         return $this.Meta | ConvertTo-Json -Depth 10
     }
 
     [int] get_LevelValue() {
+        $_level = $Global:SignalFeedbackLevel["Critical"]
+        $_level2 = $Global:SignalFeedbackLevel[$this.Level]
         if ($Global:SignalFeedbackLevel.ContainsKey($this.Level)) {
             return $Global:SignalFeedbackLevel[$this.Level]
         }
@@ -120,14 +153,12 @@ class Signal {
         $this.Entries.Add($entry)
         $this.UpdateLevel($_level, $tags)
 
-        <# #>
-        if ($Global:SignalTelemeter -ne $null) {
+        if ($Global:SignalTelemeter) {
             try {
                 & $Global:SignalTelemeter.Invoke($this, $entry)
             }
             catch {}
         }
-<##>#>
 
         if ($_level -eq "Critical") {
             $_level = "Critical"
@@ -246,6 +277,20 @@ class Signal {
         return $this.Level -ne 'Critical'
     }
 
+        [Signal] MergeSignal([Signal[]]$signals, [string]$includeFilter, [string]$excludeFilter ) {
+        foreach ($sig in $signals) {
+            if ($null -ne $sig -and $this -ne $sig) {
+                foreach ($entry in $sig.Entries) {
+                    if ((-not $excludeFilter) -or !$entry.ContainsTag($excludeFilter)) {
+                        $this.Entries.Add($entry)
+                        $this.UpdateLevel($entry.Level, $entry.Tags)
+                    }
+                }
+            }
+        }
+        return $this
+    }
+
     [Signal] MergeSignal([Signal[]]$signals) {
         foreach ($sig in $signals) {
             if ($null -ne $sig -and $this -ne $sig) {
@@ -303,7 +348,7 @@ class Signal {
             return $this.Entries
         }
         else {
-  #          $this.LogWarning("⚠️ No Entries present on signal.")
+  #          $this.LogWarning("No Entries present on signal.")
             return $null
         }
     }
@@ -361,7 +406,7 @@ class Signal {
             return $this.Result
         }
         else {
-  #           $this.LogCritical("❌ Attempted to retrieve result but no result is present in signal.")
+  #           $this.LogCritical("Attempted to retrieve result but no result is present in signal.")
             return $null
         }
     }
@@ -377,7 +422,7 @@ class Signal {
             $opSignal.LogInformation("✅ Result present and returned in new signal.")
         }
         else {
-            $opSignal.LogCritical("❌ Result is missing in parent signal.")
+            $opSignal.LogCritical("Result is missing in parent signal.")
         }
         return $opSignal
     }
@@ -403,7 +448,7 @@ class Signal {
             return $this.ReversePointer
         }
         else {
-    #        $this.LogWarning("⚠️ No ReversePointer content present in signal.")
+    #        $this.LogWarning("No ReversePointer content present in signal.")
             return $null
         }
     }
@@ -415,7 +460,7 @@ class Signal {
             $opSignal.LogInformation("✅ ReversePointer present and returned in new signal.")
         }
         else {
-            $opSignal.LogCritical("❌ ReversePointer is missing in parent signal.")
+            $opSignal.LogCritical("ReversePointer is missing in parent signal.")
         }
         return $opSignal
     }
@@ -440,7 +485,7 @@ class Signal {
             return $this.Pointer
         }
         else {
- #           $this.LogWarning("⚠️ No Pointer content present in signal.")
+ #           $this.LogWarning("No Pointer content present in signal.")
             return $null
         }
     }
@@ -452,7 +497,7 @@ class Signal {
             $opSignal.LogInformation("✅ Pointer present and returned in new signal.")
         }
         else {
-            $opSignal.LogCritical("❌ Pointer is missing in parent signal.")
+            $opSignal.LogCritical("Pointer is missing in parent signal.")
         }
         return $opSignal
     }
@@ -461,7 +506,7 @@ class Signal {
         $opSignal = [Signal]::Start("SetJacket:$($this.Name)") | Select-Object -Last 1
 
         if ($null -eq $value) {
-            $opSignal.LogWarning("⚠️ Jacket value is null; skipping set.")
+            $opSignal.LogWarning("Jacket value is null; skipping set.")
             $opSignal.SetResult($this)
             return $opSignal
         }
@@ -487,7 +532,7 @@ class Signal {
             return $this.Jacket
         }
         else {
-      #      $this.LogWarning("⚠️ No Jacket present on signal.")
+      #      $this.LogWarning("No Jacket present on signal.")
             return $null
         }
     }
@@ -499,7 +544,7 @@ class Signal {
             $opSignal.LogInformation("✅ Jacket returned in new signal.")
         }
         else {
-            $opSignal.LogCritical("❌ Jacket is missing in parent signal.")
+            $opSignal.LogCritical("Jacket is missing in parent signal.")
         }
         return $opSignal
     }
@@ -522,4 +567,52 @@ class Signal {
 
         return $lineage
     }
+}
+
+function Start-Signal(
+         [string]$Name,
+        [object]$ReversePointer = $null
+   ) {
+    return [Signal]::Start($Name, $ReversePointer) | Select-Object -Last 1
+}
+
+function Remove-LeadingEmoji {
+    param([string]$Text)
+
+    if ([string]::IsNullOrEmpty($Text)) {
+        return $Text
+    }
+
+    if (-not (Resolve-StartsWithEmoji $Text)) {
+        return $Text
+    }
+
+    $enumerator = [System.Globalization.StringInfo]::GetTextElementEnumerator($Text)
+    $null = $enumerator.MoveNext()
+
+    $firstElement = $enumerator.GetTextElement()
+    $firstLength  = $firstElement.Length
+
+    return $Text.Substring($firstLength)
+}
+
+function Resolve-StartsWithEmoji {
+    param([string]$Text)
+
+    if ([string]::IsNullOrEmpty($Text)) { return $false }
+
+    $enumerator = [System.Globalization.StringInfo]::GetTextElementEnumerator($Text)
+    if (-not $enumerator.MoveNext()) { return $false }
+
+    $firstElement = $enumerator.GetTextElement()
+
+    # Emoji live mostly in Unicode Symbol categories
+    foreach ($ch in $firstElement.ToCharArray()) {
+        $cat = [char]::GetUnicodeCategory($ch)
+        if ($cat -eq [System.Globalization.UnicodeCategory]::OtherSymbol) {
+            return $true
+        }
+    }
+
+    return $false
 }

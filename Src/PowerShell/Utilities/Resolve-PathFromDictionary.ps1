@@ -83,7 +83,7 @@ function Resolve-PathFromDictionary {
         }
     }   
 
-        function ConvertFrom-Xml {
+    function ConvertFrom-Xml {
         param (
             [Parameter(Mandatory)]
             [System.Xml.XmlNode]$Node
@@ -170,7 +170,7 @@ function Resolve-PathFromDictionary {
         ($Current -is [System.Xml.XmlNode])
 
         if (-not $isXml) {
-            $message = "❌ XPath tail '^' encountered but current is not XML. Type: $($Current.GetType().FullName). Tail: $XPathTail"
+            $message = "XPath tail '^' encountered but current is not XML. Type: $($Current.GetType().FullName). Tail: $XPathTail"
             return Handle-NullWithDefault `
                 -OperationSignal $OperationSignal `
                 -HasDefault $HasDefault `
@@ -187,7 +187,7 @@ function Resolve-PathFromDictionary {
             $selected = $Current.SelectNodes($xpath)
 
             if ($null -eq $selected) {
-                $message = "❌ XPath returned null. XPath: $xpath"
+                $message = "XPath returned null. XPath: $xpath"
                 return Handle-NullWithDefault `
                     -OperationSignal $OperationSignal `
                     -HasDefault $HasDefault `
@@ -202,7 +202,7 @@ function Resolve-PathFromDictionary {
             foreach ($n in $selected) { $asArray += $n }
 
             if ($asArray.Count -eq 0) {
-                $message = "❌ XPath matched 0 nodes. XPath: $xpath"
+                $message = "XPath matched 0 nodes. XPath: $xpath"
                 return Handle-NullWithDefault `
                     -OperationSignal $OperationSignal `
                     -HasDefault $HasDefault `
@@ -213,11 +213,11 @@ function Resolve-PathFromDictionary {
                     -SignalTags $SignalTags
             }
             elseif ($asArray.Count -eq 1) {
-                $OperationSignal.LogVerbose("🧬 XPath applied: $xpath")
+#                $OperationSignal.LogVerbose("🧬 XPath applied: $xpath")
                 return $asArray[0]
             }
             else {
-                $OperationSignal.LogVerbose("🧬 XPath applied (multiple results): $xpath")
+#                $OperationSignal.LogVerbose("🧬 XPath applied (multiple results): $xpath")
                 return $asArray
             }
         }
@@ -255,21 +255,21 @@ function Resolve-PathFromDictionary {
                 "Pointer" {
                     if ($current -is [Signal]) {
                         $current = $current.Pointer
-                        $opSignal.LogVerbose("🔗 Dereferenced *Pointer")
+#                        $opSignal.LogVerbose("🔗 Dereferenced *Pointer")
                         $processed = $true
                     }
                     else {
-                        $opSignal.LogWarning("⚠️ Expected Signal for *Pointer, got $($current.GetType().Name)", $SignalTags)
+                        $opSignal.LogWarning("Expected Signal for *Pointer, got $($current.GetType().Name)", $SignalTags)
                     }
                 }
                 "Result" {
                     if ($current -is [Signal]) {
                         $current = $current.Result
-                        $opSignal.LogVerbose("🎯 Dereferenced @Result")
+#                        $opSignal.LogVerbose("🎯 Dereferenced @Result")
                         $processed = $true
                     }
                     else {
-                        $opSignal.LogWarning("⚠️ Expected Signal for @Result, got $($current.GetType().Name)", $SignalTags)
+                        $opSignal.LogWarning("Expected Signal for @Result, got $($current.GetType().Name)", $SignalTags)
                     }
                 }
                 "Signal" {
@@ -280,21 +280,21 @@ function Resolve-PathFromDictionary {
                 "Jacket" {
                     if ($current -is [Signal]) {
                         $current = $current.Jacket
-                        $opSignal.LogVerbose("🧥 Accessed %Jacket")
+#                        $opSignal.LogVerbose("🧥 Accessed %Jacket")
                         $processed = $true
                     }
                     else {
-                        $opSignal.LogWarning("⚠️ Expected Signal for %Jacket, got $($current.GetType().Name)", $SignalTags)
+                        $opSignal.LogWarning("Expected Signal for %Jacket, got $($current.GetType().Name)", $SignalTags)
                     }
                 }
                 "Grid" {
                     if ($current -is [Graph]) {
                         $current = $current.Grid
-                        $opSignal.LogVerbose("🧩 Accessed #Grid")
+#                        $opSignal.LogVerbose("🧩 Accessed #Grid")
                         $processed = $true
                     }
                     else {
-                        $opSignal.LogWarning("⚠️ Expected Graph for #Grid, got $($current.GetType().Name)", $SignalTags)
+                        $opSignal.LogWarning("Expected Graph for #Grid, got $($current.GetType().Name)", $SignalTags)
                     }
                 }
             }
@@ -316,7 +316,7 @@ function Resolve-PathFromDictionary {
                     $array = $current.$arrayKey
                 }
                 else {
-                    $opSignal.LogCritical("❌ Array key '$arrayKey' not found.")
+                    $opSignal.LogCritical("Array key '$arrayKey' not found.")
                     return $opSignal
                 }
 
@@ -358,31 +358,36 @@ function Resolve-PathFromDictionary {
                     }
                 }
                 else {
-                    # Determine selector property + value
-                    $propertyName = 'Name'
-                    $propertyValue = $key
-
-                    if ($key -match '^(?<prop>[^=]+)=(?<val>.+)$') {
-                        $propertyName = $matches['prop']
-                        $propertyValue = $matches['val']
+                    if ($key -eq "Count") {
+                        $found = $current.Count
                     }
+                    else {
+                        # Determine selector property + value
+                        $propertyName = 'Name'
+                        $propertyValue = $key
 
-                    foreach ($item in $current) {
-                        if ($null -eq $item) { continue }
+                        if ($key -match '^(?<prop>[^=]+)=(?<val>.+)$') {
+                            $propertyName = $matches['prop']
+                            $propertyValue = $matches['val']
+                        }
 
-                        # Allow selecting signals too (Name is common)
-                        if ($item -is [Signal]) {
-                            if ($propertyName -eq 'Name' -and $item.Name -eq $propertyValue) {
+                        foreach ($item in $current) {
+                            if ($null -eq $item) { continue }
+
+                            # Allow selecting signals too (Name is common)
+                            if ($item -is [Signal]) {
+                                if ($propertyName -eq 'Name' -and $item.Name -eq $propertyValue) {
+                                    $found = $item
+                                    break
+                                }
+                                continue
+                            }
+
+                            $prop = $item.PSObject.Properties[$propertyName]
+                            if ($null -ne $prop -and "$($prop.Value)" -eq $propertyValue) {
                                 $found = $item
                                 break
                             }
-                            continue
-                        }
-
-                        $prop = $item.PSObject.Properties[$propertyName]
-                        if ($null -ne $prop -and "$($prop.Value)" -eq $propertyValue) {
-                            $found = $item
-                            break
                         }
                     }
                     if ($found) {
@@ -391,11 +396,11 @@ function Resolve-PathFromDictionary {
                     else {
                         $message = if ($current -is [string]) {
                             $snippet = $current.Substring(0, [Math]::Min(40, $current.Length))
-                            "❌ Unsupported traversal type: String ('$snippet') (lastSegmentName: $lastSegmentName)"
+                            "Unsupported traversal type: String ('$snippet') (lastSegmentName: $lastSegmentName)"
                         }
                         else {
                             $typeName = if ($null -eq $current) { '<null>' } else { $current.GetType().FullName }
-                            "❌ Not Found segment name in type: $typeName, lastSegmentName: $lastSegmentName, key: $key"
+                            "Not Found segment name in type: $typeName, lastSegmentName: $lastSegmentName, key: $key"
                         }
 
                         return Handle-NullWithDefault -DefaultForNullMessage " $message, applying default." -NullMessage  $message -SignalLevel $SignalLevel -SignalTags $SignalTags  -HasDefault $hasDefault -Default $Default -OperationSignal $opSignal 
@@ -407,14 +412,14 @@ function Resolve-PathFromDictionary {
                 $match = $current.PSObject.Properties.Match($key)
 
                 if (-not $match -or $null -eq ($value = $current.$key)) {
-                    $message = "❌ Cannot access '$key' on 'PSCustomObject' (lastSegmentName: $lastSegmentName, available: $($props -join ', '))"
+                    $message = "Cannot access '$key' on 'PSCustomObject' (lastSegmentName: $lastSegmentName, available: $($props -join ', '))"
                     return Handle-NullWithDefault -DefaultForNullMessage " $message, applying default." -NullMessage  $message -SignalLevel $SignalLevel -SignalTags $SignalTags  -HasDefault $hasDefault -Default $Default -OperationSignal $opSignal 
                 }
 
                 $current = $value
             }
             elseif ($current.GetType().IsClass -and $current.GetType().Namespace -ne "System") {
-                $type  = $current.GetType()
+                $type = $current.GetType()
                 $props = $type.GetProperties() | ForEach-Object Name
                 $methods = $type.GetMethods() | ForEach-Object Name
 
@@ -506,10 +511,10 @@ function Resolve-PathFromDictionary {
         }
 
         $opSignal.SetResult($current)
-        $opSignal.LogInformation("✅ Successfully resolved path '$Path'")
+#        $opSignal.LogInformation("✅ Successfully resolved path '$Path'")
     }
     catch {
-        $opSignal.LogMessage($SignalLevel, "Exception during path resolution: $_  (lastSegmentName: $lastSegmentName)", $SignalTags)
+        $opSignal.LogMessage($SignalLevel, "Exception during path resolution: $_  (lastSegmentName: $lastSegmentName)", $SignalTags, $_)
     }
 
     return $opSignal

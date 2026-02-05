@@ -30,7 +30,7 @@ function Test-Case {
     $writeSignal = Add-PathToDictionary -Dictionary $wrappedSignal -Path $Path -Value $Value | Select-Object -Last 1
     if ($writeSignal -isnot [Signal] -or $writeSignal.Failure()) {
         $opSignal.MergeSignal($writeSignal)
-        $opSignal.LogCritical("❌ Write failed: $($writeSignal.Name)")
+        $opSignal.LogCritical("Write failed: $($writeSignal.Name)")
         return $opSignal
     }
 
@@ -38,7 +38,7 @@ function Test-Case {
     $readSignal = Resolve-PathFromDictionary -Dictionary $wrappedSignal -Path $Path | Select-Object -Last 1
     $opSignal.MergeSignal($readSignal)
     if ($readSignal.Failure()) {
-        $opSignal.LogCritical("❌ Read failed: $($readSignal.Name)")
+        $opSignal.LogCritical("Read failed: $($readSignal.Name)")
         return $opSignal
     }
 
@@ -49,11 +49,11 @@ function Test-Case {
         if ($actual -eq $Expected) {
             $opSignal.LogInformation("✅ Passed: Got expected result '$Expected'")
         } else {
-            $opSignal.LogCritical("❌ Mismatch: expected '$Expected', got '$actual'")
+            $opSignal.LogCritical("Mismatch: expected '$Expected', got '$actual'")
         }
     }
     catch {
-        $opSignal.LogCritical("❌ Error while evaluating result: $_", $null, $_)
+        $opSignal.LogCritical("Error while evaluating result: $_", $null, $_)
     }
 
     return $opSignal

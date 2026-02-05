@@ -51,7 +51,7 @@ function Resolve-PathGraphForJsonArray {
 
     # Enforce token
     if ($template -notmatch '\{0\}') {
-        $opSignal.LogCritical("❌ SourcesWirePathTemplate must contain '{0}'. Template: '$template'")  
+        $opSignal.LogCritical("SourcesWirePathTemplate must contain '{0}'. Template: '$template'")  
         return $opSignal
     }
 
@@ -61,7 +61,7 @@ function Resolve-PathGraphForJsonArray {
     # Resolve the array at the computed path
     $arraySignal = Resolve-PathFromDictionary -Dictionary $ConductionSignal -Path $path | Select-Object -Last 1
     if ($opSignal.MergeSignalAndVerifyFailure(@($arraySignal))) {
-        $opSignal.LogCritical("❌ Failed to resolve object array via SourcesWirePathTemplate. For SourcesWirePath='$sourcesKey' → '$path'")
+        $opSignal.LogCritical("Failed to resolve object array via SourcesWirePathTemplate. For SourcesWirePath='$sourcesKey' → '$path'")
         return $opSignal
     }
 
@@ -86,7 +86,7 @@ function Resolve-PathGraphForJsonArray {
         if ($idPath) {
             $idSignal = Resolve-PathFromDictionary -Dictionary $item -Path $idPath | Select-Object -Last 1
             if ($opSignal.MergeSignalAndVerifyFailure(@($idSignal))) {
-                $opSignal.LogCritical("❌ Failed to resolve identifier path '$idPath' for item: $($item.Name)")
+                $opSignal.LogCritical("Failed to resolve identifier path '$idPath' for item: $($item.Name)")
                 return $opSignal
             }
 
@@ -111,7 +111,7 @@ function Resolve-PathGraphForJsonArray {
             #$sourceSignal = Resolve-PathFromDictionary -Dictionary $jacket -Path $sourcesKey | Select-Object -Last 1
             <#
             if ($opSignal.MergeSignalAndVerifyFailure(@($sourceSignal))) {
-                return $opSignal.LogCritical("❌ Could not resolve sources from key: $sourcesKey")
+                return $opSignal.LogCritical("Could not resolve sources from key: $sourcesKey")
             }
 
             $sourceIds = $sourceSignal.GetResult()

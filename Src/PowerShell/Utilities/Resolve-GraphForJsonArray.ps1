@@ -46,7 +46,7 @@ function Resolve-GraphForJsonArray {
     # Resolve the array at the computed path
     $arraySignal = Resolve-PathFromDictionary -Dictionary $ItemSignal -Path $SourcePath | Select-Object -Last 1
     if ($opSignal.MergeSignalAndVerifyFailure(@($arraySignal))) {
-        $opSignal.LogCritical("❌ Failed to resolve object array via SourcesWirePathTemplate. For SourcesWirePath='$sourcesKey' → '$path'")
+        $opSignal.LogCritical("Failed to resolve object array via SourcesWirePathTemplate. For SourcesWirePath='$sourcesKey' → '$path'")
         return $opSignal
     }
 
@@ -63,7 +63,7 @@ function Resolve-GraphForJsonArray {
         if ($NamePath) {
             $idSignal = Resolve-PathFromDictionary -Dictionary $item -Path $NamePath | Select-Object -Last 1
             if ($opSignal.MergeSignalAndVerifyFailure(@($idSignal))) {
-                $opSignal.LogCritical("❌ Failed to resolve identifier path '$idPath' for item: $($item.Name)")
+                $opSignal.LogCritical("Failed to resolve identifier path '$idPath' for item: $($item.Name)")
                 return $opSignal
             }
 

@@ -58,7 +58,7 @@ function Add-PathToDictionary {
         $currentContext = $null
 
         if ($segments.Count -lt 1) {
-            $opSignal.LogCritical("❌ Path too short or empty.")
+            $opSignal.LogCritical("Path too short or empty.")
             return $opSignal
         }
 
@@ -72,7 +72,7 @@ function Add-PathToDictionary {
             $isFinal = ($i -eq $segments.Count - 1)
 
             if ($null -eq $current) {
-                $opSignal.LogCritical("❌ Null encountered at segment '$key'")
+                $opSignal.LogCritical("Null encountered at segment '$key'")
                 return $opSignal
             }
 
@@ -91,7 +91,7 @@ function Add-PathToDictionary {
                         continue
                     }
                     else {
-                        $opSignal.LogCritical("❌ 'Jacket' expected Signal, got $($current.GetType().Name)")
+                        $opSignal.LogCritical("'Jacket' expected Signal, got $($current.GetType().Name)")
                         return $opSignal
                     }
                 }
@@ -106,7 +106,7 @@ function Add-PathToDictionary {
                         continue
                     }
                     else {
-                        $opSignal.LogCritical("❌ 'Pointer' expected Signal, got $($current.GetType().Name)")
+                        $opSignal.LogCritical("'Pointer' expected Signal, got $($current.GetType().Name)")
                         return $opSignal
                     }
                 }
@@ -114,7 +114,7 @@ function Add-PathToDictionary {
                     if ($current -is [Signal]) {
                         if ($isFinal) {
                             $current.SetResult($Value)
-                            $opSignal.LogInformation("📥 Wrote '$key' → $($Value.GetType().Name)")
+#                            $opSignal.LogInformation("📥 Wrote '$key' → $($Value.GetType().Name)")
                         }
                         else {
                             if (-not $current.HasResult()) {
@@ -135,7 +135,7 @@ function Add-PathToDictionary {
                         continue
                     }
                     else {
-                        $opSignal.LogCritical("❌ 'Result' segment unsupported on $($current.GetType().Name)")
+                        $opSignal.LogCritical("'Result' segment unsupported on $($current.GetType().Name)")
                         return $opSignal
                     }
                 }
@@ -159,7 +159,7 @@ function Add-PathToDictionary {
                             continue
                         }
                         else {
-                            $opSignal.LogCritical("❌ 'Grid' requires Graph or dictionary host.")
+                            $opSignal.LogCritical("'Grid' requires Graph or dictionary host.")
                             return $opSignal
                         }
                         #>
@@ -175,7 +175,7 @@ function Add-PathToDictionary {
                         continue
                     }
                     else {
-                        $opSignal.LogCritical("❌ 'Signal' key requires dictionary host.")
+                        $opSignal.LogCritical("'Signal' key requires dictionary host.")
                         return $opSignal
                     }
                 }
@@ -214,7 +214,7 @@ function Add-PathToDictionary {
                 elseif ($current.GetType().IsClass -and $current.GetType().Namespace -ne "System") {
                     $prop = $current.GetType().GetProperty($key)
                     if ($null -eq $prop -or -not $prop.CanWrite) {
-                        $opSignal.LogCritical("❌ Cannot write '$key' on class '$($current.GetType().Name)'")
+                        $opSignal.LogCritical("Cannot write '$key' on class '$($current.GetType().Name)'")
                         return $opSignal
                     }
                     $prop.SetValue($current, $Value)
@@ -223,7 +223,7 @@ function Add-PathToDictionary {
                     $current[$key] = $Value
                 }
                 else {
-                    $opSignal.LogCritical("❌ Unsupported type at final write: $($current.GetType().FullName)")
+                    $opSignal.LogCritical("Unsupported type at final write: $($current.GetType().FullName)")
                     return $opSignal
                 }
 
@@ -281,7 +281,7 @@ function Add-PathToDictionary {
             elseif ($current.GetType().IsClass -and $current.GetType().Namespace -ne "System") {
                 $prop = $current.GetType().GetProperty($key)
                 if ($null -eq $prop) {
-                    $opSignal.LogCritical("❌ Class '$($current.GetType().Name)' missing property '$key'")
+                    $opSignal.LogCritical("Class '$($current.GetType().Name)' missing property '$key'")
                     return $opSignal
                 }
                 $next = $prop.GetValue($current)
@@ -319,7 +319,7 @@ function Add-PathToDictionary {
 
                 if ($null -eq $match) {
                     $opSignal.LogCritical(
-                        "❌ Array navigation failed: no element with $propertyName='$propertyValue' found. Append the object to the array in a separate step, then retry path navigation."
+                        "Array navigation failed: no element with $propertyName='$propertyValue' found. Append the object to the array in a separate step, then retry path navigation."
                     )
                     return $opSignal
                 }
@@ -329,13 +329,13 @@ function Add-PathToDictionary {
             }
 
             else {
-                $opSignal.LogCritical("❌ Unsupported type at '$key': $($current.GetType().FullName)")
+                $opSignal.LogCritical("Unsupported type at '$key': $($current.GetType().FullName)")
                 return $opSignal
             }
         }
     }
     catch {
-        $opSignal.LogCritical("❌ Exception during Add-PathToDictionary: $($_.Exception.Message)", $null, $_)
+        $opSignal.LogCritical("Exception during Add-PathToDictionary: $($_.Exception.Message)", $null, $_)
         return $opSignal
     }
 

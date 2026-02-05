@@ -54,7 +54,7 @@ class Graph {
         $opSignal = [Signal]::Start("RegisterSignal:$Key", $this.Signal) | Select-Object -Last 1
 
         if ($this.Grid.Contains($Key)) {
-            $opSignal.LogWarning("⚠️ Overwriting existing signal at key: $Key")
+            $opSignal.LogWarning("Overwriting existing signal at key: $Key")
         }
 
         $this.Grid[$Key] = $Signal
@@ -71,7 +71,7 @@ class Graph {
             $this.Grid.Remove($Key)
             $opSignal.LogVerbose("🔓 Signal unregistered at key: $Key")
         } else {
-            $opSignal.LogWarning("⚠️ Attempted to unregister missing signal at key: $Key")
+            $opSignal.LogWarning("Attempted to unregister missing signal at key: $Key")
         }
 
         $this.Signal.MergeSignal($opSignal)
@@ -104,7 +104,7 @@ class Graph {
             $opSignal.SetResult($resolved.GetResult())
             $opSignal.LogInformation("✅ Resolved signal at key '$Key'.")
         } else {
-            $opSignal.LogWarning("⚠️ No signal registered at key '$Key'.")
+            $opSignal.LogWarning("No signal registered at key '$Key'.")
         }
 
         return $opSignal
@@ -116,7 +116,7 @@ class Graph {
         try {
             $jsonObjectSignal = Convert-GraphToJsonObject -Graph $this -IgnoreInternalObjects:$IgnoreInternalObjects | Select-Object -Last 1
             if ($opSignal.MergeSignalAndVerifyFailure($jsonObjectSignal)) {
-                $opSignal.LogCritical("❌ Failed to convert Graph to JSON object.")
+                $opSignal.LogCritical("Failed to convert Graph to JSON object.")
                 return $null
             }
 
@@ -139,7 +139,7 @@ class Graph {
             $opSignal.MergeSignal($conversionSignal)
 
             if ($conversionSignal.Failure()) {
-                $opSignal.LogCritical("❌ Failed to reconstruct Graph from JSON.")
+                $opSignal.LogCritical("Failed to reconstruct Graph from JSON.")
                 $opSignal.IsTerminal = $true
                 return $opSignal
             }

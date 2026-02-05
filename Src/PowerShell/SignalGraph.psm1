@@ -28,4 +28,6 @@ Export-ModuleMember -Function Resolve-PathGraphForJsonArray
 Export-ModuleMember -Function Convert-ToDictionary
 
 Export-ModuleMember -Function Resolve-GraphForJsonArray
+Export-ModuleMember -Function Start-Signal
+
 

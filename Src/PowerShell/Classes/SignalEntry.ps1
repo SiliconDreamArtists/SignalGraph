@@ -18,7 +18,7 @@ class SignalEntry {
 
         SignalEntry([object]$signal, [string]$level, [string]$message, [string[]]$tags = $null, [Exception]$exception = $null, $meta = $null) {
         $this.Level = $level
-        $this.Message = "✨"+($message -replace "`r", '\r' -replace "`n", '\n')
+        $this.Message = Remove-LeadingEmoji -Text ($message -replace "`r", '\r' -replace "`n", '\n')
         $this.Tags = $tags
         $this.CreatedDate = Get-Date
         $this.Exception = $exception
@@ -29,15 +29,27 @@ class SignalEntry {
             $this.AddProperty("Tags", @($this.Tags))
         }
 
+        $this.AddProperty("Type", "SignalEntry")
         $this.ProcessException($this.Exception)
-
-        $this.ProcessReversePointer($this.Signal.ReversePointer)
+        $this.get_EmojiTag()
     }
 
-    # TODO: It should process Reverse Pointer details into meta externally, like during the plan?
-    [void]ProcessReversePointer([object]$reversePointer)
-    {
+    [string] get_EmojiTag() {
+        $a = $Global:EmojiMap['SignalEntry']
+        $b = $Global:EmojiMap[$this.Level]
+        if ($this.Exception) {
+            $b = $Global:EmojiMap['Exception']
+        }
 
+        $val = $a+$b
+        $this.AddProperty("EmojiTag", $val)
+        #return ""
+
+        return $val
+    }
+
+    [bool]ContainsTag([string]$tag) {
+        return $this.Tags -contains $tag
     }
 
     # TODO: It should process Exception  exception details into meta externally, like during the plan?
@@ -77,13 +89,15 @@ class SignalEntry {
         $this.AddProperty("Tags", @($this.Tags))
     }
 
-    [void]AddProperty([string]$key, [object]$value) {
+    [object]AddProperty([string]$key, [object]$value) {
         if (-not $this.Meta.PSObject.Properties[$key]) {
             Add-Member -InputObject $this.Meta -MemberType NoteProperty -Name $key -Value $value
         }
         else {
             $this.Meta.$key = $value
         }
+
+        return $value
     }
     
     [string] get_MetaContent() {

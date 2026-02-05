@@ -10,7 +10,7 @@ function Move-PathInDictionary {
     # Step 1: Resolve source value
     $sourceSignal = Resolve-PathFromDictionary -Dictionary $Dictionary -Path $SourcePath -IgnoreInternalObjects:$IgnoreInternalObjects -SkipFinalInternalUnwrap:$SkipFinalInternalUnwrap
     if ($signal.MergeSignalAndVerifyFailure($sourceSignal)) {
-        return $signal.LogCritical("❌ Failed to resolve source at '$SourcePath'")
+        return $signal.LogCritical("Failed to resolve source at '$SourcePath'")
     }
 
     $valueToMove = $sourceSignal.GetResult()
@@ -18,7 +18,7 @@ function Move-PathInDictionary {
     # Step 2: Add to destination
     $addSignal = Add-PathToDictionary -Dictionary $Dictionary -Path $DestinationPath -Value $valueToMove
     if ($signal.MergeSignalAndVerifyFailure($addSignal)) {
-        return $signal.LogCritical("❌ Failed to add value to destination path '$DestinationPath'")
+        return $signal.LogCritical("Failed to add value to destination path '$DestinationPath'")
     }
 
     # Step 3: Remove source (if destination write succeeded)
@@ -26,7 +26,7 @@ function Move-PathInDictionary {
     $signal.MergeSignal($removeSignal)
 
     if ($removeSignal.Failure()) {
-        $signal.LogWarning("⚠️ Move succeeded but could not remove original at '$SourcePath'")
+        $signal.LogWarning("Move succeeded but could not remove original at '$SourcePath'")
     } else {
         $signal.LogInformation("🔀 Successfully moved value from '$SourcePath' to '$DestinationPath'")
     }

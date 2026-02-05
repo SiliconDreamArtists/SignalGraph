@@ -10,7 +10,7 @@ function Resolve-PathHydration {
         $segments = $CompactPath -split '\.'
 
         if ($segments.Count -lt 1) {
-            $opSignal.LogWarning("⚠️ CompactPath was empty or invalid.")
+            $opSignal.LogWarning("CompactPath was empty or invalid.")
             $opSignal.SetResult("")
             return $opSignal
         }
@@ -37,7 +37,7 @@ function Resolve-PathHydration {
         $opSignal.LogInformation("✅ Resolved hydration path: '$symbolicPath'")
     }
     catch {
-        $opSignal.LogCritical("❌ Exception during Resolve-PathHydration: $_", $null, $_)
+        $opSignal.LogCritical("Exception during Resolve-PathHydration: $_", $null, $_)
         $opSignal.SetResult("")
     }
 

@@ -91,7 +91,7 @@ function Convert-JsonToSignalGraph {
         if ($jacketSignal.HasResult()) {
             $jacketSignal.GetResult()
         } else {
-            $opSignal.LogCritical("❌ No result found on Signal or Jacket.")
+            $opSignal.LogCritical("No result found on Signal or Jacket.")
             return $opSignal
         }
     }
@@ -102,7 +102,7 @@ function Convert-JsonToSignalGraph {
     $rootSignal = Resolve-PathFromDictionary -Dictionary $signalResult -Path "*.#.Root" | Select-Object -Last 1
 
     if ($opSignal.MergeSignalAndVerifyFailure($rootSignal)) {
-        $opSignal.LogCritical("❌ Failed to resolve root signal.")
+        $opSignal.LogCritical("Failed to resolve root signal.")
         return $opSignal
     }
 

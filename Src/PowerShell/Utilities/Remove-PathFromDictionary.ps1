@@ -23,7 +23,7 @@ function Remove-PathFromDictionary {
     }
 
     if ($segments.Count -lt 1) {
-        $opSignal.LogCritical("❌ Path must contain at least one segment.")
+        $opSignal.LogCritical("Path must contain at least one segment.")
         return $opSignal
     }
 
@@ -33,7 +33,7 @@ function Remove-PathFromDictionary {
     # ░▒▓█ RESOLVE PARENT OBJECT █▓▒░
     $parentSignal = Resolve-PathFromDictionary -Dictionary $Dictionary -Path $parentPath | Select-Object -Last 1
     if ($opSignal.MergeSignalAndVerifyFailure($parentSignal)) {
-        $opSignal.LogCritical("❌ Failed to resolve parent at '$parentPath'")
+        $opSignal.LogCritical("Failed to resolve parent at '$parentPath'")
         return $opSignal
     }
 
@@ -46,7 +46,7 @@ function Remove-PathFromDictionary {
                 $parent.Remove($targetKey)
                 $opSignal.LogInformation("🗑️ Removed key '$targetKey' from dictionary.")
             } else {
-                $opSignal.LogWarning("⚠️ Key '$targetKey' not found in dictionary.")
+                $opSignal.LogWarning("Key '$targetKey' not found in dictionary.")
             }
         }
         { $parent -is [pscustomobject] -or $parent -is [System.Management.Automation.PSObject] } {
@@ -54,7 +54,7 @@ function Remove-PathFromDictionary {
                 $parent.PSObject.Properties.Remove($targetKey)
                 $opSignal.LogInformation("🗑️ Removed property '$targetKey' from PSCustomObject.")
             } else {
-                $opSignal.LogWarning("⚠️ Property '$targetKey' not found on PSCustomObject.")
+                $opSignal.LogWarning("Property '$targetKey' not found on PSCustomObject.")
             }
         }
         { $parent.GetType().IsClass -and $parent.GetType().Namespace -ne "System" } {
@@ -63,11 +63,11 @@ function Remove-PathFromDictionary {
                 $prop.SetValue($parent, $null)
                 $opSignal.LogInformation("🧼 Cleared property '$targetKey' on class '$($parent.GetType().Name)'.")
             } else {
-                $opSignal.LogWarning("⚠️ Property '$targetKey' not found or not writable.")
+                $opSignal.LogWarning("Property '$targetKey' not found or not writable.")
             }
         }
         default {
-            $opSignal.LogCritical("❌ Unsupported parent type at '$targetKey': $($parent.GetType().FullName)")
+            $opSignal.LogCritical("Unsupported parent type at '$targetKey': $($parent.GetType().FullName)")
             return $opSignal
         }
     }

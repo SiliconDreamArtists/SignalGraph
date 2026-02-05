@@ -14,7 +14,7 @@ function Get-ResolvedValueFromPathSignal {
     $opSignal.MergeSignal($resolvedSignal) | Out-Null
 
     if ($resolvedSignal.IsFailure) {
-        $opSignal.LogCritical("❌ Failed to resolve path '$Path'.")
+        $opSignal.LogCritical("Failed to resolve path '$Path'.")
         return $opSignal
     }
 
@@ -22,7 +22,7 @@ function Get-ResolvedValueFromPathSignal {
     $opSignal.SetResult($result)
 
     if ($null -eq $result) {
-        $opSignal.LogWarning("⚠️ Resolved value is null at path '$Path'.")
+        $opSignal.LogWarning("Resolved value is null at path '$Path'.")
     }
     else {
         $opSignal.LogInformation("✅ Value resolved and returned for path '$Path'.")
