@@ -41,7 +41,14 @@ class SignalEntry {
             $b = $Global:EmojiMap['Exception']
         }
 
-        $val = $a+$b
+        $c = ''
+        if ($this.Signal.GetProperty("SignalType") -and $Global:EmojiMap.ContainsKey($this.Signal.GetProperty("SignalType")))
+        {
+            $c = $Global:EmojiMap[$this.Signal.GetProperty("SignalType")]
+        }
+
+        $val = $a+$b+$c
+
         $this.AddProperty("EmojiTag", $val)
         #return ""
 

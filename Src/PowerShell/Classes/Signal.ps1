@@ -16,6 +16,9 @@ $Global:EmojiMap = @{
     SignalEntry         = '✨'
     Success             = '✅'
     Failure             = '❌'
+
+    Conduction             = '⚡'
+    ConductionPhase        = '〰️'
 }
 
 
@@ -47,10 +50,11 @@ class Signal {
     [object]$ReversePointer = $null
     [object]$Jacket = $null
     [object]$Result = $null
+    [object]$Control = $null
     [string]$Name
     [string]$Id = [guid]::NewGuid().ToString()
     [string]$Level = 'Information'
-[int]$LevelId = 4
+    [int]$LevelId = 4
     [object]$Meta = [PSCustomObject]@{}
 
     [System.Collections.Generic.List[SignalEntry]]$Entries = [System.Collections.Generic.List[SignalEntry]]::new()
@@ -81,7 +85,13 @@ class Signal {
         $a = $Global:EmojiMap['Signal']
         $b = $Global:EmojiMap[$this.Level]
 
-        $val = $a+$b
+        $c = ''
+        if ($this.GetProperty("SignalType") -and $Global:EmojiMap.ContainsKey($this.GetProperty("SignalType")))
+        {
+            $c = $Global:EmojiMap[$this.GetProperty("SignalType")]
+        }
+
+        $val = $a+$b+$c
         $this.AddProperty("EmojiTag", $val)
 
     #    return ""
@@ -119,22 +129,22 @@ class Signal {
         return $value
     }
 
+    [object]GetProperty([string]$key) {
+        $current = $this.Meta
+        if (-not $current.PSObject.Properties[$key]) {
+            return $null
+        }
+        else {
+            return $current.$key
+        }
+    }
+
     [string[]] GetTags() {
         return $this.Tags
     }
 
     [string] get_MetaContent() {
         return $this.Meta | ConvertTo-Json -Depth 10
-    }
-
-    [int] get_LevelValue() {
-        $_level = $Global:SignalFeedbackLevel["Critical"]
-        $_level2 = $Global:SignalFeedbackLevel[$this.Level]
-        if ($Global:SignalFeedbackLevel.ContainsKey($this.Level)) {
-            return $Global:SignalFeedbackLevel[$this.Level]
-        }
-
-        return $Global:SignalFeedbackLevel.Unspecified
     }
 
     [Signal] LogMessage([string]$level, [string]$message) {
@@ -146,9 +156,6 @@ class Signal {
     }
 
     [Signal] LogMessage([string]$_level, [string]$message, [string[]]$tags, [Exception]$exception = $null) {
-#        $exceptionMessage = if ($exception) { $exception.Message } else { $null }
-#        $entry = [SignalEntry]::new($this, $_level, $message, $tags, $exceptionMessage, $null)
-
         $entry = [SignalEntry]::new($this, $_level, $message, $tags, $exception, $null)
         $this.Entries.Add($entry)
         $this.UpdateLevel($_level, $tags)
@@ -168,7 +175,6 @@ class Signal {
                 $a = ""
             }
         }
-
 
         return $this
     }
@@ -201,12 +207,6 @@ class Signal {
         $ex = if ($err) { $err.Exception } else { $null }
         return $this.LogMessage("Critical", $message, $tags, $ex)
     }
-
-    <#
-    [Signal] LogCritical([string]$message, [string[]]$tags, [Exception]$exception) {
-        return $this.LogMessage("Critical", $message, $tags, $exception)
-    }
-        #>
 
     [Signal] LogCritical([string]$message, [string[]]$tags) {
         return $this.LogMessage("Critical", $message, $tags)
@@ -283,6 +283,8 @@ class Signal {
                 foreach ($entry in $sig.Entries) {
                     if ((-not $excludeFilter) -or !$entry.ContainsTag($excludeFilter)) {
                         $this.Entries.Add($entry)
+                        $entry.Signal = $this
+                        $entry.get_EmojiTag()
                         $this.UpdateLevel($entry.Level, $entry.Tags)
                     }
                 }
@@ -296,6 +298,8 @@ class Signal {
             if ($null -ne $sig -and $this -ne $sig) {
                 foreach ($entry in $sig.Entries) {
                     $this.Entries.Add($entry)
+                    $entry.Signal = $this
+                    $entry.get_EmojiTag()
                     $this.UpdateLevel($entry.Level, $entry.Tags)
                 }
             }
@@ -413,6 +417,28 @@ class Signal {
         
     [bool] HasResult() {
         return $null -ne $this.Result
+    }
+
+    [void] SetControl([object]$value) {
+        $this.Control = $value
+    }
+
+    [bool] HasControl() {
+        return $null -ne $this.Control
+    }
+
+    [Signal] GetControl([bool]$returnSelfForNullControl) {
+        $value = $this.GetControl()
+        if ($null -eq $value -and $returnSelfForNullControl)
+        {
+            $value = $this
+        }
+
+        return $value
+    }
+
+    [Signal] GetControl() {
+        return $this.Control
     }
 
     [Signal] GetResultSignal() {

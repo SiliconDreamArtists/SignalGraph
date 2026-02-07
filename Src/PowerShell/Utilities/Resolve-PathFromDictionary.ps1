@@ -25,6 +25,11 @@ function Resolve-PathFromDictionary {
         "@" = "Result"
         "$" = "Signal"
         "#" = "Grid"
+        "~" = "Control"
+
+        # Reserved
+        "^" = "XPathTail"
+        "|" = "DefaultOnPath"
 
         # Provisional, not in use
         ":" = "Dimension"
