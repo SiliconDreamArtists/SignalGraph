@@ -168,7 +168,7 @@ class Signal {
 
         if ($Global:SignalTelemeter) {
             try {
-#                & $Global:SignalTelemeter.Invoke($this, $entry)
+                & $Global:SignalTelemeter.Invoke($this, $entry)
             }
             catch {}
         }

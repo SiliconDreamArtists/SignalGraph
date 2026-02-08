@@ -50,7 +50,7 @@ function Resolve-GraphForJsonArray {
         return $opSignal
     }
 
-    $flatArray = $arraySignal.GetResult()
+    $flatArray = @($arraySignal.GetResult())
 
     # Build a graph and map items by identifier
     $graphSignal = [Graph]::Start("Graph:$GraphName", $opSignal, $true) | Select-Object -Last 1
