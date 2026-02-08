@@ -4,6 +4,7 @@ class SignalEntry {
     [string]$Message
     [Exception]$Exception
     [datetime]$CreatedDate
+    [datetime]$ModifiedDate
     [datetime]$LastModifiedDate
     [string]$CreatedBy
     [string]$LastModifiedBy
@@ -21,6 +22,7 @@ class SignalEntry {
         $this.Message = Remove-LeadingEmoji -Text ($message -replace "`r", '\r' -replace "`n", '\n')
         $this.Tags = $tags
         $this.CreatedDate = Get-Date
+        $this.ModifiedDate = Get-Date
         $this.Exception = $exception
         $this.Signal = $signal
         $this.Meta = $meta ? $meta : $this.Meta

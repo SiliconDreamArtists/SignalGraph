@@ -17,6 +17,7 @@ $Global:EmojiMap = @{
     Success             = '✅'
     Failure             = '❌'
 
+    Conductor             = '🔥'
     Conduction             = '⚡'
     ConductionPhase        = '〰️'
 }
@@ -46,6 +47,8 @@ enum SignalTags {
 
 class Signal {
     [string[]]$Tags
+    [datetime]$CreatedDate
+    [datetime]$ModifiedDate
     [object]$Pointer = $null
     [object]$ReversePointer = $null
     [object]$Jacket = $null
@@ -73,6 +76,9 @@ class Signal {
     ) {
         $opSignal = [Signal]::new()
         $opSignal.Name = $name
+
+        $opSignal.CreatedDate = Get-Date
+        $opSignal.ModifiedDate = Get-Date
 
         if ($null -ne $reversePointer) {
             $opSignal.SetReversePointer($reversePointer) | Out-Null
@@ -162,7 +168,7 @@ class Signal {
 
         if ($Global:SignalTelemeter) {
             try {
-                & $Global:SignalTelemeter.Invoke($this, $entry)
+#                & $Global:SignalTelemeter.Invoke($this, $entry)
             }
             catch {}
         }
