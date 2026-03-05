@@ -425,6 +425,10 @@ class Signal {
         return $null -ne $this.Result
     }
 
+    [bool] HasPointer() {
+        return $null -ne $this.Pointer
+    }
+
     [void] SetControl([object]$value) {
         $this.Control = $value
     }

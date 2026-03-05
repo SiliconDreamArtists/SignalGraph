@@ -85,6 +85,7 @@ function Add-PathToDictionary {
             # ░▒▓█ SYMBOLIC STRUCTURE STEPS █▓▒░
             switch ($key) {
                 "Jacket" {
+       #             $currentContext = $null #Reset CurrentContext once we exit the Graph
                     if ($current -is [Signal]) {
                         $current = $current.GetJacket()
                         $processed = $true
@@ -111,6 +112,7 @@ function Add-PathToDictionary {
                     }
                 }
                 "Result" {
+                    $currentContext = $null #Reset CurrentContext once we exit the Pointer/Graph
                     if ($current -is [Signal]) {
                         if ($isFinal) {
                             $current.SetResult($Value)
@@ -140,6 +142,7 @@ function Add-PathToDictionary {
                     }
                 }
                 "Grid" {
+      #              $currentContext = $null #Reset CurrentContext once we exit the Graph
                     if ($current -is [Graph]) {
                         if (-not $current.Grid) {
                             $current.Grid = @{}
@@ -166,6 +169,7 @@ function Add-PathToDictionary {
                     }
                 }
                 "Signal" {
+       #             $currentContext = $null #Reset CurrentContext once we exit the Graph
                     if ($current -is [System.Collections.IDictionary]) {
                         if (-not $current.Contains("Signal")) {
                             $current["Signal"] = [Signal]::Start("AutoCreated")

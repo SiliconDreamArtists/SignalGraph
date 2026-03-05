@@ -26,6 +26,7 @@ Export-ModuleMember -Function Resolve-GraphPlanInjectionContext
 Export-ModuleMember -Function Move-PathInDictionary
 Export-ModuleMember -Function Resolve-PathGraphForJsonArray
 Export-ModuleMember -Function Convert-ToDictionary
+Export-ModuleMember -Function Remove-PathFromDictionary
 
 Export-ModuleMember -Function Resolve-GraphForJsonArray
 Export-ModuleMember -Function Start-Signal

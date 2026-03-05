@@ -27,17 +27,24 @@ function Remove-PathFromDictionary {
         return $opSignal
     }
 
-    $targetKey  = $segments[-1]
+    $targetKey = $segments[-1]
     $parentPath = if ($segments.Count -gt 1) { $segments[0..($segments.Count - 2)] -join '.' } else { '' }
 
     # ░▒▓█ RESOLVE PARENT OBJECT █▓▒░
-    $parentSignal = Resolve-PathFromDictionary -Dictionary $Dictionary -Path $parentPath | Select-Object -Last 1
-    if ($opSignal.MergeSignalAndVerifyFailure($parentSignal)) {
-        $opSignal.LogCritical("Failed to resolve parent at '$parentPath'")
-        return $opSignal
-    }
+    if ($parentPath) {
 
-    $parent = $parentSignal.GetResult()
+        $parentSignal = Resolve-PathFromDictionary -Dictionary $Dictionary -Path $parentPath | Select-Object -Last 1
+        if ($opSignal.MergeSignalAndVerifyFailure($parentSignal)) {
+            $opSignal.LogCritical("Failed to resolve parent at '$parentPath'")
+            return $opSignal
+        }
+
+        $parent = $parentSignal.GetResult()
+    }
+    else {
+        $parent = $Dictionary
+        $targetKey = $Path
+    }
 
     # ░▒▓█ PERFORM REMOVAL █▓▒░
     switch ($true) {
@@ -45,26 +52,32 @@ function Remove-PathFromDictionary {
             if ($parent.Contains($targetKey)) {
                 $parent.Remove($targetKey)
                 $opSignal.LogInformation("🗑️ Removed key '$targetKey' from dictionary.")
-            } else {
+            }
+            else {
                 $opSignal.LogWarning("Key '$targetKey' not found in dictionary.")
             }
+            break
         }
         { $parent -is [pscustomobject] -or $parent -is [System.Management.Automation.PSObject] } {
             if ($parent.PSObject.Properties[$targetKey]) {
                 $parent.PSObject.Properties.Remove($targetKey)
                 $opSignal.LogInformation("🗑️ Removed property '$targetKey' from PSCustomObject.")
-            } else {
+            }
+            else {
                 $opSignal.LogWarning("Property '$targetKey' not found on PSCustomObject.")
             }
+            break
         }
         { $parent.GetType().IsClass -and $parent.GetType().Namespace -ne "System" } {
             $prop = $parent.GetType().GetProperty($targetKey)
             if ($null -ne $prop -and $prop.CanWrite) {
                 $prop.SetValue($parent, $null)
                 $opSignal.LogInformation("🧼 Cleared property '$targetKey' on class '$($parent.GetType().Name)'.")
-            } else {
+            }
+            else {
                 $opSignal.LogWarning("Property '$targetKey' not found or not writable.")
             }
+            break
         }
         default {
             $opSignal.LogCritical("Unsupported parent type at '$targetKey': $($parent.GetType().FullName)")
