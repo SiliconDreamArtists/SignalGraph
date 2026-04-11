@@ -2,7 +2,8 @@ function Add-PathToDictionary {
     param (
         $Dictionary,
         [Parameter(Mandatory)] [string]$Path,
-        [Parameter()] $Value
+        [Parameter()] $Value,
+        [string] $AddStyle
     )
 
     $opSignal = [Signal]::Start("Add-PathToDictionary", $Dictionary) | Select-Object -Last 1
@@ -85,7 +86,7 @@ function Add-PathToDictionary {
             # ░▒▓█ SYMBOLIC STRUCTURE STEPS █▓▒░
             switch ($key) {
                 "Jacket" {
-       #             $currentContext = $null #Reset CurrentContext once we exit the Graph
+                    #             $currentContext = $null #Reset CurrentContext once we exit the Graph
                     if ($current -is [Signal]) {
                         $current = $current.GetJacket()
                         $processed = $true
@@ -116,7 +117,7 @@ function Add-PathToDictionary {
                     if ($current -is [Signal]) {
                         if ($isFinal) {
                             $current.SetResult($Value)
-#                            $opSignal.LogInformation("📥 Wrote '$key' → $($Value.GetType().Name)")
+                            #                            $opSignal.LogInformation("📥 Wrote '$key' → $($Value.GetType().Name)")
                         }
                         else {
                             if (-not $current.HasResult()) {
@@ -142,7 +143,7 @@ function Add-PathToDictionary {
                     }
                 }
                 "Grid" {
-      #              $currentContext = $null #Reset CurrentContext once we exit the Graph
+                    #              $currentContext = $null #Reset CurrentContext once we exit the Graph
                     if ($current -is [Graph]) {
                         if (-not $current.Grid) {
                             $current.Grid = @{}
@@ -169,7 +170,7 @@ function Add-PathToDictionary {
                     }
                 }
                 "Signal" {
-       #             $currentContext = $null #Reset CurrentContext once we exit the Graph
+                    #             $currentContext = $null #Reset CurrentContext once we exit the Graph
                     if ($current -is [System.Collections.IDictionary]) {
                         if (-not $current.Contains("Signal")) {
                             $current["Signal"] = [Signal]::Start("AutoCreated")
@@ -212,7 +213,24 @@ function Add-PathToDictionary {
                         Add-Member -InputObject $current -MemberType NoteProperty -Name $key -Value $Value
                     }
                     else {
-                        $current.$key = $Value
+                        if ($AddStyle -eq "Append" -and $Value -is [PSCustomObject]) {
+                            # When AddStyle is Append and $Value is a PSCustomObject,
+                            # append each property from $Value onto $current.
+                            foreach ($valueProperty in $Value.PSObject.Properties) {
+                                $valueKey = $valueProperty.Name
+                                $valueValue = $valueProperty.Value
+
+                                if (-not $current.$key.PSObject.Properties[$valueKey]) {
+                                    Add-Member -InputObject $current.$key -MemberType NoteProperty -Name $valueKey -Value $valueValue
+                                }
+                                else {
+                                    $current.$key.$valueKey = $valueValue
+                                }
+                            }
+                        }
+                        else {
+                            $current.$key = $Value
+                        }                    
                     }
                 }
                 elseif ($current.GetType().IsClass -and $current.GetType().Namespace -ne "System") {

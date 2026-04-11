@@ -1,47 +1,47 @@
 # Globals for external use only.
 $Global:SignalFeedbackLevel = @{
-    Unspecified          = 0
-    Information          = 1
-    Warning              = 2
-    Critical             = 3
+    Unspecified = 0
+    Information = 1
+    Warning     = 2
+    Critical    = 3
 }
 
 $Global:EmojiMap = @{
-    Unspecified         = ''
-    Information         = '✅'
-    Warning             = '⚠️'
-    Critical            = '❌'
-    Exception           = '🔥'
-    Signal              = '⭐'
-    SignalEntry         = '✨'
-    Success             = '✅'
-    Failure             = '❌'
+    Unspecified     = ''
+    Information     = '✅'
+    Warning         = '⚠️'
+    Critical        = '❌'
+    Exception       = '🔥'
+    Signal          = '⭐'
+    SignalEntry     = '✨'
+    Success         = '✅'
+    Failure         = '❌'
 
-    Conductor             = '🔥'
-    Conduction             = '⚡'
-    ConductionPhase        = '〰️'
+    Conductor       = '🔥'
+    Conduction      = '⚡'
+    ConductionPhase = '〰️'
 }
 
 
 [Flags()]
 enum SignalTags {
-    Unspecified          = 0
+    Unspecified = 0
     SensitiveInformation = 1
-    Verbose              = 2
-    Code                 = 4
-    Diagram              = 8
-    Operations           = 16
-    Retry                = 32
-    Recovery             = 64
-    Mute                 = 128
-    Security             = 256
-    Content              = 512
-    Heal                 = 1024   # caller may take healing action before retry
-    PatchPlan            = 2048   # signal includes a plan patch overlay
+    Verbose = 2
+    Code = 4
+    Diagram = 8
+    Operations = 16
+    Retry = 32
+    Recovery = 64
+    Mute = 128
+    Security = 256
+    Content = 512
+    Heal = 1024   # caller may take healing action before retry
+    PatchPlan = 2048   # signal includes a plan patch overlay
 
 
-    TelemetryScheduled   = 4096
-    TelemetrySent        = 8192
+    TelemetryScheduled = 4096
+    TelemetrySent = 8192
 
 }
 
@@ -92,27 +92,24 @@ class Signal {
         $b = $Global:EmojiMap[$this.Level]
 
         $c = ''
-        if ($this.GetProperty("SignalType") -and $Global:EmojiMap.ContainsKey($this.GetProperty("SignalType")))
-        {
+        if ($this.GetProperty("SignalType") -and $Global:EmojiMap.ContainsKey($this.GetProperty("SignalType"))) {
             $c = $Global:EmojiMap[$this.GetProperty("SignalType")]
         }
 
-        $val = $a+$b+$c
+        $val = $a + $b + $c
         $this.AddProperty("EmojiTag", $val)
 
-    #    return ""
+        #    return ""
         return $val
     }
 
-    [object] CreateGraph()
-    {
+    [object] CreateGraph() {
         return Resolve-Graph -Signal $this
     }
 
 
     [void]AddTag([string]$tag) {
-        if (-not $this.Tags)
-        {
+        if (-not $this.Tags) {
             $this.Tags = @()
         }
 
@@ -176,8 +173,7 @@ class Signal {
         if ($_level -eq "Critical") {
             $_level = "Critical"
 
-            if ($exception)
-            {
+            if ($exception) {
                 $a = ""
             }
         }
@@ -239,41 +235,41 @@ class Signal {
         return $this.LogMessage("Information", $message, @("Mute"))
     }
 
-[void] UpdateLevel([string]$newLevel, [string[]]$tags) {
-    $graph = @{
-        "Unspecified" = 0
-        "Information" = 4
-        "Warning"     = 16
-        "Critical"    = 64
-    }
+    [void] UpdateLevel([string]$newLevel, [string[]]$tags) {
+        $graph = @{
+            "Unspecified" = 0
+            "Information" = 4
+            "Warning"     = 16
+            "Critical"    = 64
+        }
 
-    $newValue     = $graph[$newLevel]
-    $currentValue = $graph[$this.Level]
+        $newValue = $graph[$newLevel]
+        $currentValue = $graph[$this.Level]
 
-    switch ($true) {
-        { $tags -contains "Recovery" } {
-            if ($this.Level -eq "Critical") {
-                $this.Level = "Warning"
+        switch ($true) {
+            { $tags -contains "Recovery" } {
+                if ($this.Level -eq "Critical") {
+                    $this.Level = "Warning"
+                }
+                break
             }
-            break
-        }
-        { $tags -contains "Mute" } {
-            if ($this.Level -eq "Critical") {
-                $this.Level = "Warning"
+            { $tags -contains "Mute" } {
+                if ($this.Level -eq "Critical") {
+                    $this.Level = "Warning"
+                }
+                break
             }
-            break
-        }
-        { $tags -contains "Diagram" } {
-            # Diagram is non-intrusive; do nothing.
-            break
-        }
-        default {
-            if ($newValue -gt $currentValue) {
-                $this.Level = $newLevel
+            { $tags -contains "Diagram" } {
+                # Diagram is non-intrusive; do nothing.
+                break
+            }
+            default {
+                if ($newValue -gt $currentValue) {
+                    $this.Level = $newLevel
+                }
             }
         }
     }
-}
 
     [bool] Failure() {
         return $this.Level -eq 'Critical'
@@ -283,7 +279,7 @@ class Signal {
         return $this.Level -ne 'Critical'
     }
 
-        [Signal] MergeSignal([Signal[]]$signals, [string]$includeFilter, [string]$excludeFilter ) {
+    [Signal] MergeSignal([Signal[]]$signals, [string]$includeFilter, [string]$excludeFilter ) {
         foreach ($sig in $signals) {
             if ($null -ne $sig -and $this -ne $sig) {
                 foreach ($entry in $sig.Entries) {
@@ -354,11 +350,11 @@ class Signal {
     
     [System.Collections.Generic.List[SignalEntry]] GetEntries() {
         if ($null -ne $this.Entries) {
- #           $this.LogInformation("🧵 Retrieved Entries from signal.")
+            #           $this.LogInformation("🧵 Retrieved Entries from signal.")
             return $this.Entries
         }
         else {
-  #          $this.LogWarning("No Entries present on signal.")
+            #          $this.LogWarning("No Entries present on signal.")
             return $null
         }
     }
@@ -407,16 +403,15 @@ class Signal {
         
     [object] GetResult([bool]$UnwrapSignal) {
         if ($null -ne $this.Result) {
- #           $this.LogInformation("✅ Retrieved result from signal.")
+            #           $this.LogInformation("✅ Retrieved result from signal.")
             
-            if ($UnwrapSignal -and $this.Result -is [Signal])
-            {
+            if ($UnwrapSignal -and $this.Result -is [Signal]) {
                 return $this.Result.GetResult($UnwrapSignal)
             }
             return $this.Result
         }
         else {
-  #           $this.LogCritical("Attempted to retrieve result but no result is present in signal.")
+            #           $this.LogCritical("Attempted to retrieve result but no result is present in signal.")
             return $null
         }
     }
@@ -439,8 +434,7 @@ class Signal {
 
     [Signal] GetControl([bool]$returnSelfForNullControl) {
         $value = $this.GetControl()
-        if ($null -eq $value -and $returnSelfForNullControl)
-        {
+        if ($null -eq $value -and $returnSelfForNullControl) {
             $value = $this
         }
 
@@ -480,11 +474,11 @@ class Signal {
 
     [object] GetReversePointer() {
         if ($null -ne $this.ReversePointer) {
-   #         $this.LogInformation("✅ Retrieved ReversePointer from signal.")
+            #         $this.LogInformation("✅ Retrieved ReversePointer from signal.")
             return $this.ReversePointer
         }
         else {
-    #        $this.LogWarning("No ReversePointer content present in signal.")
+            #        $this.LogWarning("No ReversePointer content present in signal.")
             return $null
         }
     }
@@ -517,11 +511,11 @@ class Signal {
 
     [object] GetPointer() {
         if ($null -ne $this.Pointer) {
-#            $this.LogInformation("✅ Retrieved Pointer from signal.")
+            #            $this.LogInformation("✅ Retrieved Pointer from signal.")
             return $this.Pointer
         }
         else {
- #           $this.LogWarning("No Pointer content present in signal.")
+            #           $this.LogWarning("No Pointer content present in signal.")
             return $null
         }
     }
@@ -564,11 +558,11 @@ class Signal {
 
     [object] GetJacket() {
         if ($null -ne $this.Jacket) {
-     #       $this.LogInformation("🧵 Retrieved Jacket from signal.")
+            #       $this.LogInformation("🧵 Retrieved Jacket from signal.")
             return $this.Jacket
         }
         else {
-      #      $this.LogWarning("No Jacket present on signal.")
+            #      $this.LogWarning("No Jacket present on signal.")
             return $null
         }
     }
@@ -606,9 +600,9 @@ class Signal {
 }
 
 function Start-Signal(
-         [string]$Name,
-        [object]$ReversePointer = $null
-   ) {
+    [string]$Name,
+    [object]$ReversePointer = $null
+) {
     return [Signal]::Start($Name, $ReversePointer) | Select-Object -Last 1
 }
 
@@ -627,7 +621,7 @@ function Remove-LeadingEmoji {
     $null = $enumerator.MoveNext()
 
     $firstElement = $enumerator.GetTextElement()
-    $firstLength  = $firstElement.Length
+    $firstLength = $firstElement.Length
 
     return $Text.Substring($firstLength)
 }
