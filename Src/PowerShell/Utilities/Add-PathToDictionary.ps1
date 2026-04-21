@@ -121,7 +121,7 @@ function Add-PathToDictionary {
                         }
                         else {
                             if (-not $current.HasResult()) {
-                                $current.SetResult(@{})
+                                $current.SetResult([ordered]@{})
                             }
                             $current = $current.GetResult()
                         }
@@ -146,7 +146,7 @@ function Add-PathToDictionary {
                     #              $currentContext = $null #Reset CurrentContext once we exit the Graph
                     if ($current -is [Graph]) {
                         if (-not $current.Grid) {
-                            $current.Grid = @{}
+                            $current.Grid = [ordered]@{}
                         }
                         $current = $current.Grid
                         $processed = $true
@@ -278,7 +278,7 @@ function Add-PathToDictionary {
                 else {
                     # ░▒▓█ GENERIC DICTIONARY █▓▒░
                     if (-not $current.Contains($key)) {
-                        $current[$key] = @{}
+                        $current[$key] = [ordered]@{}
                     }
 
                     $current = $current[$key]
@@ -291,7 +291,7 @@ function Add-PathToDictionary {
             elseif ($current -is [PSCustomObject] -or $current -is [System.Management.Automation.PSObject]) {
                 if (-not $current.PSObject.Properties[$key]) {
                     try {   
-                        Add-Member -InputObject $current -MemberType NoteProperty -Name $key -Value (@{})                        
+                        Add-Member -InputObject $current -MemberType NoteProperty -Name $key -Value ([ordered]@{})                        
                     }
                     catch {
                         $opSignal.LogCritical("Exception adding member '$key': $_", $null, $_)

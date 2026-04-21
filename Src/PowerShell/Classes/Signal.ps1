@@ -163,7 +163,8 @@ class Signal {
         $this.Entries.Add($entry)
         $this.UpdateLevel($_level, $tags)
 
-        if ($Global:SignalTelemeter) {
+        $signalAll = $false
+        if ($signalAll -and $Global:SignalTelemeter) {
             try {
                 & $Global:SignalTelemeter.Invoke($this, $entry)
             }
@@ -171,11 +172,20 @@ class Signal {
         }
 
         if ($_level -eq "Critical") {
+            if (-not ($signalAll) -and $Global:SignalTelemeter) {
+                try {
+                    & $Global:SignalTelemeter.Invoke($this, $entry)
+                }
+                catch {}
+            }
+
+
             $_level = "Critical"
 
             if ($exception) {
                 $a = ""
             }
+
         }
 
         return $this
