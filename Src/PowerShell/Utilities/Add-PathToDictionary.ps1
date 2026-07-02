@@ -215,16 +215,46 @@ function Add-PathToDictionary {
                     else {
                         if ($AddStyle -eq "Append" -and $Value -is [PSCustomObject]) {
                             # When AddStyle is Append and $Value is a PSCustomObject,
-                            # append each property from $Value onto $current.
+                            # append each property from $Value onto the existing object/dictionary at $current.$key.
+
+                            $appendToProperty = $current.PSObject.Properties[$key]
+
+                            if ($null -eq $appendToProperty) {
+                                throw "Cannot append because key '$key' does not exist on current object."
+                            }
+
+                            $appendToDictionary = $appendToProperty.Value
+
+                            # This got expanded to support Dictionary or PSCustomObject. When a new thing is added, it's added as a Dictionary, but when it's converted from Json, it gets created as PSCustomObject
+                            # instead of having to support both types of objects, the create above could create a PSCustomObject and then we wouldn't need to differentiate with the if ($appendToDictionary -is [System.Collections.IDictionary]) { block 
                             foreach ($valueProperty in $Value.PSObject.Properties) {
                                 $valueKey = $valueProperty.Name
                                 $valueValue = $valueProperty.Value
 
-                                if (-not $current.$key.PSObject.Properties[$valueKey]) {
-                                    Add-Member -InputObject $current.$key -MemberType NoteProperty -Name $valueKey -Value $valueValue
+                                if ($appendToDictionary -is [System.Collections.IDictionary]) {
+                                    # Works for hashtable and OrderedDictionary
+                                    if (-not $appendToDictionary.Contains($valueKey)) {
+                                        $appendToDictionary.Add($valueKey, $valueValue)
+                                    }
+                                    else {
+                                        $appendToDictionary[$valueKey] = $valueValue
+                                    }
+                                }
+                                elseif ($appendToDictionary -is [PSCustomObject]) {
+                                    # Works for PSCustomObject
+                                    if (-not $appendToDictionary.PSObject.Properties[$valueKey]) {
+                                        Add-Member `
+                                            -InputObject $appendToDictionary `
+                                            -MemberType NoteProperty `
+                                            -Name $valueKey `
+                                            -Value $valueValue
+                                    }
+                                    else {
+                                        $appendToDictionary.$valueKey = $valueValue
+                                    }
                                 }
                                 else {
-                                    $current.$key.$valueKey = $valueValue
+                                    throw "Cannot append property '$valueKey' because target '$key' is type '$($appendToDictionary.GetType().FullName)', not PSCustomObject or IDictionary."
                                 }
                             }
                         }

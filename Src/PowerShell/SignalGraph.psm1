@@ -7,6 +7,7 @@
 . "$PSScriptRoot/Utilities/Convert-JsonToSignalGraph.ps1"
 . "$PSScriptRoot/Utilities/Add-PathToDictionary.ps1"
 . "$PSScriptRoot/Utilities/Resolve-PathHydration.ps1"
+. "$PSScriptRoot/Utilities/Resolve-InnerPathFromDictionary.ps1"
 . "$PSScriptRoot/Utilities/Resolve-PathFromDictionary.ps1"
 . "$PSScriptRoot/Utilities/Remove-PathFromDictionary.ps1"
 . "$PSScriptRoot/Utilities/Resolve-GraphPlanInjectionContext.ps1"
@@ -21,6 +22,7 @@ Export-ModuleMember -Function Get-ResolvedValueFromPathSignal
 Export-ModuleMember -Function Convert-JsonToSignalGraph
 Export-ModuleMember -Function Add-PathToDictionary
 Export-ModuleMember -Function Resolve-PathHydration
+Export-ModuleMember -Function Resolve-InnerPathFromDictionary
 Export-ModuleMember -Function Resolve-PathFromDictionary
 Export-ModuleMember -Function Resolve-GraphPlanInjectionContext
 Export-ModuleMember -Function Move-PathInDictionary

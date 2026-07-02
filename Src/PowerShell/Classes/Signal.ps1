@@ -180,7 +180,7 @@ class Signal {
             }
 
 
-            $_level = "Critical"
+             $_level = "Critical"
 
             if ($exception) {
                 $a = ""
