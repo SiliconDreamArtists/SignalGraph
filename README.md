@@ -87,6 +87,22 @@ Serialized:
 
 ## 🚀 Usage
 
+Install the PowerShell module from the PowerShell Gallery:
+
+```powershell
+Install-Module SignalGraph -Scope CurrentUser
+```
+
+Classes must be imported at parse time in scripts that use typed SignalGraph
+references:
+
+```powershell
+using module SignalGraph
+
+$signal = [Signal]::Start('example')
+$entry = [SignalEntry]::new()
+```
+
 ```csharp
 Signal signal = Signal.Start();
 signal.LogWarning("Disk space low");

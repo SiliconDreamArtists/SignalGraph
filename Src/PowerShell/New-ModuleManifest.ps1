@@ -17,4 +17,4 @@ New-ModuleManifest -Path ./SignalGraph.psd1 `
   -PowerShellVersion '5.1'
 
  
-  Invoke-GenerateModuleFile -OutputFile 'SignalGraph.psm1' -Root $PSScriptRoot
+  # SignalGraph.psm1 embeds its classes for parse-time module export.

@@ -12,7 +12,7 @@
 RootModule = 'SignalGraph.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.0.0'
+ModuleVersion = '1.0.2'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core'
@@ -95,7 +95,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = '''Signal'' ''SovereignTrust'' ''Messaging'' ''StructuredLog'''
+        Tags = @('Signal', 'SovereignTrust', 'Messaging', 'StructuredLog', 'PowerShell')
 
         # A URL to the license for this module.
         LicenseUri = 'https://opensource.org/licenses/MIT'
@@ -107,7 +107,7 @@ PrivateData = @{
         # IconUri = ''
 
         # ReleaseNotes of this module
-        # ReleaseNotes = ''
+        ReleaseNotes = 'Loads and exports Resolve-GraphForJsonArray for conduction graph processing.'
 
         # Prerelease string of this module
         # Prerelease = ''

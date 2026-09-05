@@ -1,4 +1,22 @@
 class SignalEntry {
+    static [string] RemoveLeadingEmoji([string]$Text) {
+        if ([string]::IsNullOrEmpty($Text)) {
+            return $Text
+        }
+
+        $enumerator = [System.Globalization.StringInfo]::GetTextElementEnumerator($Text)
+        if (-not $enumerator.MoveNext()) {
+            return $Text
+        }
+
+        $firstElement = $enumerator.GetTextElement()
+        if ($firstElement -notmatch '\p{So}|\p{Cs}') {
+            return $Text
+        }
+
+        return $Text.Substring($firstElement.Length)
+    }
+
     [string]$Level
     [string[]]$Tags
     [string]$Message
@@ -19,7 +37,7 @@ class SignalEntry {
 
         SignalEntry([object]$signal, [string]$level, [string]$message, [string[]]$tags = $null, [Exception]$exception = $null, $meta = $null) {
         $this.Level = $level
-        $this.Message = Remove-LeadingEmoji -Text ($message -replace "`r", '\r' -replace "`n", '\n')
+        $this.Message = [SignalEntry]::RemoveLeadingEmoji(($message -replace "`r", '\r' -replace "`n", '\n'))
         $this.Tags = $tags
         $this.CreatedDate = Get-Date
         $this.ModifiedDate = Get-Date
