@@ -49,6 +49,63 @@ function Resolve-InnerPathFromDictionary {
         $xpathTail = $Path.Substring($caretIndex + 1)
     }
 
+    function Split-PathPreservingQuotes {
+    param([string]$Path)
+
+    $segments = @()
+    $buffer   = ""
+    $inQuote  = $false
+    $quoteChar = $null
+
+    for ($i = 0; $i -lt $Path.Length; $i++) {
+        $c = $Path[$i]
+
+        if ($inQuote) {
+            if ($c -eq $quoteChar) {
+                # End quote
+                $inQuote = $false
+                continue
+            }
+
+            # Allow escaped quotes \" or \'
+            if ($c -eq '\' -and $i + 1 -lt $Path.Length -and $Path[$i+1] -eq $quoteChar) {
+                $buffer += $quoteChar
+                $i++
+                continue
+            }
+
+            $buffer += $c
+            continue
+        }
+
+        # Start of quoted segment
+        if ($c -eq '"' -or $c -eq "'") {
+            $inQuote = $true
+            $quoteChar = $c
+            continue
+        }
+
+        # Dot = segment boundary
+        if ($c -eq '.') {
+            if ($buffer.Length -gt 0) {
+                $segments += $buffer
+                $buffer = ""
+            }
+            continue
+        }
+
+        # Normal character
+        $buffer += $c
+    }
+
+    # Final segment
+    if ($buffer.Length -gt 0) {
+        $segments += $buffer
+    }
+
+    return $segments
+}
+
     function Handle-NullWithDefault {
         param (
             [Parameter(Mandatory)]
@@ -245,6 +302,7 @@ function Resolve-InnerPathFromDictionary {
             $char = $char
         }
         $rawSegments = $basePath -split '\.'
+        $rawSegments = Split-PathPreservingQuotes -Path $basePath
         $segments = Expand-Symbols $rawSegments
         $current = $Dictionary
 
