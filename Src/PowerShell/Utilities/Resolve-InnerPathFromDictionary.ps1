@@ -301,7 +301,7 @@ function Resolve-InnerPathFromDictionary {
         if ($char -eq '\:') {
             $char = $char
         }
-        $rawSegments = $basePath -split '\.'
+
         $rawSegments = Split-PathPreservingQuotes -Path $basePath
         $segments = Expand-Symbols $rawSegments
         $current = $Dictionary
